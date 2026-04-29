@@ -13,3 +13,4 @@ Procfile just tells render how to run the code / app
 
 FRONTEND - CLIENT SIDE
 BACKEND - SERVER SIDE
+BEFORE MAG CHANGE CODE INSTALL MUNA REQUIREMENTS ( BACKEND ONLY ) - install venv then install requirements.txt
