@@ -14,3 +14,5 @@ Procfile just tells render how to run the code / app
 FRONTEND - CLIENT SIDE
 BACKEND - SERVER SIDE
 BEFORE MAG CHANGE CODE INSTALL MUNA REQUIREMENTS ( BACKEND ONLY ) - install venv then install requirements.txt
+
+if push doesnt work and throws an error regarding merging - "git pull origin main"
