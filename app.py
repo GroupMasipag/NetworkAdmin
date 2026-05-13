@@ -4,6 +4,13 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+import psycopg2
+import psycopg2.extras
+import os 
+from dotenv import load_dotenv
+
+load_dotenv( )
+
 app = Flask(__name__)
 
 # Lock it down: Only allow your frontend (e.g., localhost:3000) to talk to this backend
@@ -16,6 +23,14 @@ limiter = Limiter(
     default_limits=["100 per day", "30 per hour"],
     storage_uri="memory://"
 )
+
+def get_db_connection( ):
+    "connects to postgres using URL in .environment"
+    db_url = os.getenv("DATABASE_URL")
+
+    conn = psycopg2.connect(db_url)
+
+    return conn
 
 # ==========================================
 # DASHBOARD INTERFACE (FOR THE DEMO!)
@@ -30,16 +45,23 @@ def home():
 #API ROUTING
 @app.route('/api/threats', methods=['GET'])
 def get_threat_logs():
-    """
-    Your frontend will hit this URL to populate its tables.
-    For now, we use simulated data, but later this can read from a database.
-    """
-    simulated_threats = [
-        {"id": 1, "ip": "192.168.1.105", "attack_type": "DDoS Attempt", "severity": "High"},
-        {"id": 2, "ip": "10.0.0.42", "attack_type": "Failed SSH Login", "severity": "Medium"}
-    ]
-    # jsonify converts the Python dictionary into standard JSON format
-    return jsonify(simulated_threats)
+    try:
+        conn = get_db_connection( )
+        #use realdictcursor output = JSON
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        #STANDARD SQL QUERIES HERE
+        cursor.execute("SELECT * FROM threats ORDER BY id DESC")
+        threats = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+        #conn stands fpr connection for reference
+
+        return jsonify(threats)
+
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return jsonify({"error": "Failed to fetch the threats"})
 
 
 #BLOCK COMMAND ENDPOINT ( INCOMING )
