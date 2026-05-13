@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 import subprocess # used for linux commands
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -16,6 +16,16 @@ limiter = Limiter(
     default_limits=["100 per day", "30 per hour"],
     storage_uri="memory://"
 )
+
+# ==========================================
+# DASHBOARD INTERFACE (FOR THE DEMO!)
+# ==========================================
+@app.route('/', methods=['GET'])
+def home():
+    """
+    Serves the main dashboard HTML page with the live camera feed.
+    """
+    return render_template('dashboard.html')
 
 #API ROUTING
 @app.route('/api/threats', methods=['GET'])

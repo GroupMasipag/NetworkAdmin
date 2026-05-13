@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #1a1a1a; color: white; text-align: center; }
+        .camera-box { border: 3px solid #ff4444; border-radius: 8px; overflow: hidden; display: inline-block; margin-top: 20px; }
+        video { width: 640px; height: 480px; background-color: black; display: block; }
+    </style>
+</head>
+<body>
+
+    <h1>Network System</h1>
+    <p>Live Monitoring Feed Active</p>
+
+    <div class="camera-box">
+        <video id="webcam-feed" autoplay playsinline></video>
+    </div>
+
+    <script>
+        // Tell the browser to look for a video camera (no audio needed)
+        const videoElement = document.getElementById('webcam-feed');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                // If the user clicks "Allow", connect the camera to the video box
+                videoElement.srcObject = stream;
+            })
+            .catch(function(error) {
+                console.error("Camera access denied or no camera found!", error);
+                alert("Please allow camera permissions in your browser to view the feed.");
+            });
+    </script>
+
+</body>
+</html>
