@@ -1,101 +1,108 @@
-from flask import Flask, jsonify, request, render_template
-import subprocess # used for linux commands
-from flask_cors import CORS
+import os
+import threading
+import time
+import random
+import getpass
+import psycopg2
+import psycopg2.extras
+from flask import Flask, render_template
+from dotenv import load_dotenv
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-import psycopg2
-import psycopg2.extras
-import os 
-from dotenv import load_dotenv
-
-load_dotenv( )
-
+# 1. SETUP & DATABASE LINK
+load_dotenv() 
 app = Flask(__name__)
+limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
 
-# Lock it down: Only allow your frontend (e.g., localhost:3000) to talk to this backend
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}) #subject to change
-
-# Initialize the rate limiter to prevent spam attacks
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per day", "30 per hour"],
-    storage_uri="memory://"
-)
-
-def get_db_connection( ):
-    "connects to postgres using URL in .environment"
-    db_url = os.getenv("DATABASE_URL")
-
-    conn = psycopg2.connect(db_url)
-
-    return conn
-
-# ==========================================
-# DASHBOARD INTERFACE (FOR THE DEMO!)
-# ==========================================
-@app.route('/', methods=['GET'])
-def home():
-    """
-    Serves the main dashboard HTML page with the live camera feed.
-    """
-    return render_template('dashboard.html')
-
-#API ROUTING
-@app.route('/api/threats', methods=['GET'])
-def get_threat_logs():
+def get_db_connection():
     try:
-        conn = get_db_connection( )
-        #use realdictcursor output = JSON
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        #STANDARD SQL QUERIES HERE
-        cursor.execute("SELECT * FROM threats ORDER BY id DESC")
-        threats = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
-        #conn stands fpr connection for reference
-
-        return jsonify(threats)
-
+        # Connects using the string in your .env file
+        return psycopg2.connect(os.getenv("DATABASE_URL"))
     except Exception as e:
-        print(f"Database Error: {e}")
-        return jsonify({"error": "Failed to fetch the threats"})
+        print(f"❌ DATABASE ERROR: {e}")
+        return None
 
-
-#BLOCK COMMAND ENDPOINT ( INCOMING )
-@app.route('/api/block', methods=['POST'])
-@limiter.limit("5 per minute") # Added limiter: Max 5 blocks per minute per user
-def execute_block_command():
-    """
-    frontend will send a POST request here with an IP address to block.
-    """
-    # 1. Grab the JSON data sent by the frontend
-    incoming_data = request.get_json()
+# 2. THE DETECTION MECHANIC (SCANNER)
+def network_scanner():
+    """Background process to simulate threat detection."""
+    print(">>> [SYSTEM] Scanner Initialized: Monitoring Network...")
     
-    # 2. Extract the specific IP address
-    target_ip = incoming_data.get('ip_address')
+    attack_types = ['DDoS Attempt', 'SQL Injection', 'Unauthorized Login', 'Port Scan']
 
-    # 3. Safety check: Did they actually send an IP?
-    if not target_ip:
-        return jsonify({"error": "No IP address provided in the request"}), 400
+    while True:
+        time.sleep(15)  # Scans every 15 seconds
+        conn = get_db_connection()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                # Generate a random IP to simulate an external visitor
+                detected_ip = f"192.168.1.{random.randint(10, 254)}"
+                
+                attack = random.choice(attack_types)
+                severity = random.choice(['Low', 'Medium', 'High'])
+                
+                # Directly log every 'detected' IP into the database
+                cursor.execute(
+                    "INSERT INTO threats (ip, attack_type, severity) VALUES (%s, %s, %s)",
+                    (detected_ip, attack, severity)
+                )
+                conn.commit()
+                print(f"⚠️ [DETECTION] Threat logged: {attack} from {detected_ip}")
+                
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                print(f"Scanner Loop Error: {e}")
 
-    # 4. LINUX
-    # WSL = CAN USE PYTHON SUBPROCESS
-    # trigger a real firewall rule here using iptables: ( DONT TOUCH UNTIL FRONT END IS DONE )
-    # subprocess.run(["sudo", "iptables", "-A", "INPUT", "-s", target_ip, "-j", "DROP"])
+# 3. START THE SCANNER THREAD
+threading.Thread(target=network_scanner, daemon=True).start()
+
+# 4. DASHBOARD ROUTE
+@app.route('/')
+def home():
+    conn = get_db_connection()
+    usage_logs = []
+    threat_logs = []
     
-    print(f"[-DEFENSE SYSTEM ACTIVATED-] Executing block on IP: {target_ip}") #dipa final
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # Log who is viewing the dashboard
+            cursor.execute(
+                "INSERT INTO app_usage (username, user_ip) VALUES (%s, %s)", 
+                (getpass.getuser(), get_remote_address())
+            )
+            conn.commit()
+            
+            # Fetch data for the tables
+            cursor.execute("SELECT * FROM app_usage ORDER BY access_time DESC LIMIT 5")
+            usage_logs = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM threats ORDER BY timestamp DESC LIMIT 5")
+            threat_logs = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Dashboard Data Error: {e}")
 
-    # 5. Send a success message back to the frontend
-    return jsonify({
-        "status": "success",
-        "action_taken": "DROP",
-        "target": target_ip,
-        "message": f"Successfully deployed block rules for {target_ip}"
-    }), 200
-    #http://127.0.0.1:5000/api/threats -- location ng mga intercepted threats
+    return render_template('dashboard.html', usage=usage_logs, threats=threat_logs)
 
+# 5. RUN THE APP
 if __name__ == '__main__':
-    app.run(debug=True)
+    test = get_db_connection()
+    if test:
+        print("✅ SUCCESS: Linked to PostgreSQL.")
+        test.close()
+        
+        print(">>> Attempting to start Scanner...")
+        daemon_thread = threading.Thread(target=network_scanner, daemon=True)
+        daemon_thread.start()
+        print(">>> Scanner Thread is now running in background.")
+    else:
+        print("❌ FAILED: Could not link to PostgreSQL. Check .env file.")
+
+    # use_reloader=False is REQUIRED so the scanner doesn't restart/die
+    app.run(debug=True, use_reloader=False)
