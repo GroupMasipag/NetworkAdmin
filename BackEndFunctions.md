@@ -9,3 +9,12 @@ We are using POSTGRESQL for this project so we do not have to configure heavy ex
 
 Flask-CORS - Lock Down API Access
 
+Base URL (Local): http://127.0.0.1:5000
+
+Base URL (Live): https://network-defense-api.onrender.com
+
+Get Threats: GET /api/threats (Returns an array of JSON objects).
+
+Login: POST /api/login (Send JSON: {"username": "admin", "password": "admin123"}). This will return a token.
+
+Block IP: POST /api/block (Requires the JWT token in the Authorization header. Send JSON: {"ip_address": "192.168.1.X"}).
