@@ -1,0 +1,251 @@
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Shield, Info, X } from 'lucide-react';
+
+interface SecurityAlertTableProps {
+  darkMode: boolean;
+}
+
+interface Alert {
+  id: number;
+  time: string;
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  type: string;
+  source: string;
+  description: string;
+  status: 'active' | 'mitigated' | 'investigating';
+}
+
+export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps) {
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  
+  // 1. Create a blank state to hold the live database alerts
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  // 2. The Link: Fetch the data from Python
+  useEffect(() => {
+    const fetchThreats = () => {
+      // Hit your local Flask API
+      fetch('http://127.0.0.1:5000/api/threats')
+        .then((res) => res.json())
+        .then((data) => {
+          // 3. Translate Python's database format into React's UI format
+          const liveData = data.map((item: any) => ({
+            id: item.id,
+            // Convert Postgres timestamp to a readable time
+            time: new Date(item.timestamp).toLocaleTimeString(), 
+            // Ensure severity matches your UI colors (low, medium, high)
+            severity: item.severity.toLowerCase(), 
+            type: item.attack_type,
+            source: item.ip,
+            description: `Automated detection: ${item.attack_type} detected originating from IP address ${item.ip}.`,
+            status: 'active'
+          }));
+          
+          // 4. Update the screen with the live data!
+          setAlerts(liveData);
+        })
+        .catch((err) => console.error("Database Connection Failed:", err));
+    };
+
+    // Fetch immediately on load
+    fetchThreats();
+
+    // Automatically refresh the table every 15 seconds
+    const interval = setInterval(fetchThreats, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'text-red-500';
+      case 'high': return 'text-orange-500';
+      case 'medium': return 'text-yellow-500';
+      case 'low': return 'text-blue-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getSeverityBg = (severity: string) => {
+    switch (severity) {
+      case 'critical': return darkMode ? 'bg-red-900/20' : 'bg-red-50';
+      case 'high': return darkMode ? 'bg-orange-900/20' : 'bg-orange-50';
+      case 'medium': return darkMode ? 'bg-yellow-900/20' : 'bg-yellow-50';
+      case 'low': return darkMode ? 'bg-blue-900/20' : 'bg-blue-50';
+      default: return darkMode ? 'bg-gray-900/20' : 'bg-gray-50';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'text-red-500';
+      case 'mitigated': return 'text-green-500';
+      case 'investigating': return 'text-yellow-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className={`p-6 rounded-lg ${darkMode ? 'bg-[#1a2942] border border-blue-900/30' : 'bg-white border border-gray-200'}`}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className={`text-2xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Security Alerts
+          </h2>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                Live Monitoring
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={`border-b ${darkMode ? 'border-blue-900/30' : 'border-gray-200'}`}>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Time
+                </th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Severity
+                </th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Type
+                </th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Source
+                </th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Status
+                </th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {alerts.map((alert) => (
+                <tr
+                  key={alert.id}
+                  className={`border-b ${darkMode ? 'border-blue-900/30 hover:bg-[#0f1f35]' : 'border-gray-100 hover:bg-gray-50'} transition-colors cursor-pointer`}
+                  onClick={() => setSelectedAlert(alert)}
+                >
+                  <td className={`px-4 py-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {alert.time}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getSeverityBg(alert.severity)} ${getSeverityColor(alert.severity)}`}>
+                      {alert.severity === 'critical' || alert.severity === 'high' ? (
+                        <AlertTriangle className="w-3 h-3" />
+                      ) : alert.severity === 'info' ? (
+                        <Info className="w-3 h-3" />
+                      ) : (
+                        <Shield className="w-3 h-3" />
+                      )}
+                      {alert.severity.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className={`px-4 py-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {alert.type}
+                  </td>
+                  <td className={`px-4 py-4 text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {alert.source}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className={`text-xs font-medium ${getStatusColor(alert.status)}`}>
+                      {alert.status.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <button className={`text-sm px-3 py-1 rounded transition-colors ${
+                      darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-900 hover:bg-blue-800 text-white'
+                    }`}>
+                      Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {selectedAlert && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedAlert(null)}>
+          <div
+            className={`max-w-2xl w-full p-6 rounded-xl shadow-2xl ${darkMode ? 'bg-[#1a2942]' : 'bg-white'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className={`text-2xl mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Alert Details
+                </h2>
+                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${getSeverityBg(selectedAlert.severity)} ${getSeverityColor(selectedAlert.severity)}`}>
+                  <AlertTriangle className="w-4 h-4" />
+                  {selectedAlert.severity.toUpperCase()} SEVERITY
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedAlert(null)}
+                className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Time</p>
+                <p className={`${darkMode ? 'text-white' : 'text-gray-900'}`}>{selectedAlert.time}</p>
+              </div>
+
+              <div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Threat Type</p>
+                <p className={`${darkMode ? 'text-white' : 'text-gray-900'}`}>{selectedAlert.type}</p>
+              </div>
+
+              <div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Source</p>
+                <p className={`font-mono ${darkMode ? 'text-white' : 'text-gray-900'}`}>{selectedAlert.source}</p>
+              </div>
+
+              <div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Description</p>
+                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{selectedAlert.description}</p>
+              </div>
+
+              <div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Status</p>
+                <p className={`font-medium ${getStatusColor(selectedAlert.status)}`}>
+                  {selectedAlert.status.toUpperCase()}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                  darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-900 hover:bg-blue-800 text-white'
+                }`}
+              >
+                Take Action
+              </button>
+              <button
+                onClick={() => setSelectedAlert(null)}
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                  darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
