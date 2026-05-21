@@ -17,7 +17,7 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
   // 2. Fetch the live hybrid data from Python
   useEffect(() => {
     const fetchStatus = () => {
-      fetch('http://127.0.0.1:5000/api/system-status')
+      fetch('https://networkadmin.onrender.com/api/system-status')
         .then((res) => res.json())
         .then((data) => {
           setStatusData(data);

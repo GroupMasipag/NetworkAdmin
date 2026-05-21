@@ -18,7 +18,7 @@ export default function TrafficGraph({ darkMode }: TrafficGraphProps) {
 
   useEffect(() => {
     const fetchTraffic = () => {
-      fetch('http://127.0.0.1:5000/api/traffic')
+      fetch('https://networkadmin.onrender.com/api/traffic')
         .then((res) => res.json())
         .then((dbData) => {
           // Safety check: ensure we actually got an array back from Python

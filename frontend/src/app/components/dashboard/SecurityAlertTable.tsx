@@ -25,7 +25,7 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
   useEffect(() => {
     const fetchThreats = () => {
       // Hit your local Flask API
-      fetch('http://127.0.0.1:5000/api/threats')
+      fetch('https://networkadmin.onrender.com/api/threats')
         .then((res) => res.json())
         .then((data) => {
           // 3. Translate Python's database format into React's UI format

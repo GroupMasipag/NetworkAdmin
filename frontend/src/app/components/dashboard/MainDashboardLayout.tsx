@@ -19,7 +19,7 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
   // 2. Fetch the Hub data from Python
   useEffect(() => {
     const fetchSummary = () => {
-      fetch('http://127.0.0.1:5000/api/dashboard-summary')
+      fetch('https://networkadmin.onrender.com/api/dashboard-summary')
         .then((res) => res.json())
         .then((data) => {
           setSummary({

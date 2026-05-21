@@ -26,7 +26,7 @@ export default function SystemLogs({ darkMode }: SystemLogsProps) {
   // 2. Fetch the live data from Python
   useEffect(() => {
     const fetchLogs = () => {
-      fetch('http://127.0.0.1:5000/api/logs')
+      fetch('https://networkadmin.onrender.com/api/logs')
         .then((res) => res.json())
         .then((data) => {
           // 3. Translate Python's database format into React's UI format

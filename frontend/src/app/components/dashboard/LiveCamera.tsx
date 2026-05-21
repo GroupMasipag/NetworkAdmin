@@ -15,7 +15,7 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
   // 2. The Link: Fetch the data from Python
   useEffect(() => {
     const fetchCameraEvents = () => {
-      fetch('http://127.0.0.1:5000/api/camera-events')
+      fetch('https://networkadmin.onrender.com/api/camera-events')
         .then((res) => res.json())
         .then((data) => {
           // 3. Translate Python's database columns into React's UI format

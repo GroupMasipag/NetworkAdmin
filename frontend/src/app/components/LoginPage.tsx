@@ -21,7 +21,7 @@ export default function LoginPage({ onLogin, darkMode, setDarkMode }: LoginPageP
 
     try {
       // 1. Send the username and password to the Python Bouncer
-      const response = await fetch('http://127.0.0.1:5000/api/login', {
+      const response = await fetch('https://networkadmin.onrender.com/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
