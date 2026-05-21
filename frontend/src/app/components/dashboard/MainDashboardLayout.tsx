@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Shield, AlertTriangle, Users, Server, Activity, Globe } from 'lucide-react';
+import { Shield, AlertTriangle, Users, Server, Globe, Camera } from 'lucide-react';
 
 interface MainDashboardLayoutProps {
   darkMode: boolean;
 }
 
 export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutProps) {
-  // 1. Set up a secure default state so the UI doesn't crash while loading
   const [summary, setSummary] = useState({
     currentTraffic: 0,
     activeConnections: 0,
@@ -16,7 +15,6 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
     recentAlerts: [] as any[]
   });
 
-  // 2. Fetch the Hub data from Python
   useEffect(() => {
     const fetchSummary = () => {
       fetch('https://networkadmin.onrender.com/api/dashboard-summary')
@@ -36,7 +34,6 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
 
     fetchSummary();
     
-    // Refresh the main dashboard every 3 seconds
     const interval = setInterval(fetchSummary, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -91,7 +88,7 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* System Security Logs */}
+        {/* LEFT COLUMN: System Security Logs */}
         <div className={`p-6 rounded-xl border flex flex-col ${darkMode ? 'bg-[#1a2942] border-blue-900/30' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between mb-6">
             <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -124,58 +121,82 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
           </div>
         </div>
 
-        {/* Active Security Alerts */}
-        <div className={`p-6 rounded-xl border ${darkMode ? 'bg-[#1a2942] border-blue-900/30' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Active Security Alerts
+        {/* RIGHT COLUMN: Camera & Alerts */}
+        <div className="space-y-6">
+          
+          {/* THE RESTORED MINI-CAMERA */}
+          <div className={`p-6 rounded-xl border ${darkMode ? 'bg-[#1a2942] border-blue-900/30' : 'bg-white border-gray-200'}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Live Camera Feed
             </h3>
-          </div>
-          <div className="space-y-4">
-            {summary.recentAlerts.map((alert, index) => {
-              const isCritical = alert.severity.toLowerCase() === 'critical';
-              return (
-                <div key={index} className={`p-4 rounded-lg border-l-4 ${
-                  isCritical 
-                    ? `border-red-500 ${darkMode ? 'bg-red-900/10' : 'bg-red-50'}` 
-                    : `border-yellow-500 ${darkMode ? 'bg-yellow-900/10' : 'bg-yellow-50'}`
-                }`}>
-                  <div className="flex items-start gap-3">
-                    {isCritical ? (
-                      <Shield className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                    )}
-                    <div>
-                      <h4 className={`font-medium ${
-                        isCritical 
-                          ? (darkMode ? 'text-red-400' : 'text-red-700') 
-                          : (darkMode ? 'text-yellow-400' : 'text-yellow-700')
-                      }`}>
-                        {alert.severity.toUpperCase()}: {alert.attack_type}
-                      </h4>
-                      <p className={`text-sm mt-1 ${
-                        isCritical 
-                          ? (darkMode ? 'text-red-300' : 'text-red-600') 
-                          : (darkMode ? 'text-yellow-300' : 'text-yellow-600')
-                      }`}>
-                        {alert.description || `Threat detected from IP address ${alert.ip}`}
-                      </p>
-                      <p className={`text-xs mt-2 ${
-                        isCritical 
-                          ? (darkMode ? 'text-red-400/70' : 'text-red-500') 
-                          : (darkMode ? 'text-yellow-400/70' : 'text-yellow-500')
-                      }`}>
-                        {new Date(alert.timestamp).toLocaleTimeString()} - Source: {alert.ip}
-                      </p>
-                    </div>
+            <div className={`relative aspect-video rounded-lg overflow-hidden ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-900'}`}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <Camera className={`w-12 h-12 mx-auto mb-2 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                  <p className="text-gray-500 text-sm">CAM-01: Main Entrance</p>
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    <span className="text-red-500 text-xs font-bold tracking-wider">LIVE</span>
                   </div>
                 </div>
-              );
-            })}
-            {summary.recentAlerts.length === 0 && (
-              <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No active alerts at this time.</p>
-            )}
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+            </div>
+          </div>
+
+          {/* Active Security Alerts */}
+          <div className={`p-6 rounded-xl border ${darkMode ? 'bg-[#1a2942] border-blue-900/30' : 'bg-white border-gray-200'}`}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Active Security Alerts
+              </h3>
+            </div>
+            <div className="space-y-4">
+              {summary.recentAlerts.map((alert, index) => {
+                const isCritical = alert.severity.toLowerCase() === 'critical';
+                return (
+                  <div key={index} className={`p-4 rounded-lg border-l-4 ${
+                    isCritical 
+                      ? `border-red-500 ${darkMode ? 'bg-red-900/10' : 'bg-red-50'}` 
+                      : `border-yellow-500 ${darkMode ? 'bg-yellow-900/10' : 'bg-yellow-50'}`
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      {isCritical ? (
+                        <Shield className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <h4 className={`font-medium ${
+                          isCritical 
+                            ? (darkMode ? 'text-red-400' : 'text-red-700') 
+                            : (darkMode ? 'text-yellow-400' : 'text-yellow-700')
+                        }`}>
+                          {alert.severity.toUpperCase()}: {alert.attack_type}
+                        </h4>
+                        <p className={`text-sm mt-1 ${
+                          isCritical 
+                            ? (darkMode ? 'text-red-300' : 'text-red-600') 
+                            : (darkMode ? 'text-yellow-300' : 'text-yellow-600')
+                        }`}>
+                          {alert.description || `Threat detected from IP address ${alert.ip}`}
+                        </p>
+                        <p className={`text-xs mt-2 ${
+                          isCritical 
+                            ? (darkMode ? 'text-red-400/70' : 'text-red-500') 
+                            : (darkMode ? 'text-yellow-400/70' : 'text-yellow-500')
+                        }`}>
+                          {new Date(alert.timestamp).toLocaleTimeString()} - Source: {alert.ip}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {summary.recentAlerts.length === 0 && (
+                <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No active alerts at this time.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
