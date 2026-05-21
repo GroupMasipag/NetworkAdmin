@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Camera, Maximize2, Volume2, VolumeX, Video, VideoOff } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Maximize2, Volume2, VolumeX, Video, VideoOff } from 'lucide-react';
 
 interface LiveCameraProps {
   darkMode: boolean;
@@ -12,13 +12,42 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
   // 1. Create a blank state to hold the live database camera events
   const [events, setEvents] = useState<any[]>([]);
 
-  // 2. The Link: Fetch the data from Python
+  // 2. Create a reference to attach the video stream to
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 3. The Webcam Activation Hook
+  useEffect(() => {
+    let currentStream: MediaStream | null = null;
+
+    const startCamera = async () => {
+      try {
+        // Ask the browser for webcam access
+        currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = currentStream;
+        }
+      } catch (err) {
+        console.error("Camera access denied or unavailable:", err);
+      }
+    };
+
+    startCamera();
+
+    // Cleanup function: Turn off the webcam light when leaving the page
+    return () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // 4. The Link: Fetch the data from your live Python Bouncer on Render
   useEffect(() => {
     const fetchCameraEvents = () => {
       fetch('https://networkadmin.onrender.com/api/camera-events')
         .then((res) => res.json())
         .then((data) => {
-          // 3. Translate Python's database columns into React's UI format
+          // Translate Python's database columns into React's UI format
           const liveData = data.map((item: any) => ({
             time: new Date(item.timestamp).toLocaleTimeString(),
             camera: item.camera_id,
@@ -53,21 +82,26 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
 
         <div className="max-w-4xl mx-auto">
           <div className={`relative aspect-video rounded-lg overflow-hidden ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-900'}`}>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <Camera className="w-24 h-24 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 text-xl">{camera.name}</p>
-                <p className="text-gray-500 text-sm mt-2">{camera.location}</p>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-red-500 text-sm font-medium">LIVE</span>
-                </div>
-              </div>
+            
+            {/* The Live Webcam Stream */}
+            <video 
+              ref={videoRef}
+              autoPlay 
+              playsInline 
+              muted 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            
+            {/* Keeping the LIVE pulse badge in the top right corner for aesthetics */}
+            <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-black/50 px-3 py-1 rounded-full">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className="text-red-500 text-xs font-bold tracking-wider">LIVE</span>
             </div>
 
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+            {/* Gradient overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 pointer-events-none" />
 
-            <div className="absolute top-4 left-4 right-4 flex items-start justify-between">
+            <div className="absolute top-4 left-4 flex items-start justify-between z-10">
               <div>
                 <div className={`px-3 py-1.5 rounded ${darkMode ? 'bg-black/60' : 'bg-black/70'}`}>
                   <p className="text-white text-sm font-mono">
@@ -75,7 +109,9 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
+            </div>
+
+            <div className="absolute top-4 right-24 flex gap-2 z-10">
                 <button
                   onClick={() => setIsMuted(!isMuted)}
                   className="p-2 rounded bg-black/60 hover:bg-black/80 text-white transition-colors"
@@ -85,10 +121,9 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
                 <button className="p-2 rounded bg-black/60 hover:bg-black/80 text-white transition-colors">
                   <Maximize2 className="w-5 h-5" />
                 </button>
-              </div>
             </div>
 
-            <div className="absolute bottom-4 left-4 right-4">
+            <div className="absolute bottom-4 left-4 right-4 z-10">
               <div className="flex items-center justify-between">
                 <div className={`px-3 py-1.5 rounded ${darkMode ? 'bg-black/60' : 'bg-black/70'}`}>
                   <p className="text-white text-sm">
