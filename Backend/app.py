@@ -68,14 +68,35 @@ def login():
     username = incoming_data.get('username')
     password = incoming_data.get('password')
 
-    # SUBJECT TO CHANGE LATER IN LINKING OF DB
-    simulated_hash = generate_password_hash("admin123")
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # 1. Fetch the user's saved (and pre-hashed) password from the DB
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        
+        # 2. Check if the user exists AND if the password matches the hash
+        if user and check_password_hash(user['password_hash'], password):
+            
+            # 3. Create the token
+            access_token = create_access_token(identity=username)
+            
+            cursor.execute(
+                "INSERT INTO app_usage (username, user_ip) VALUES (%s, %s)",
+                (username, request.remote_addr)
+            )
+            conn.commit()
+            
+            cursor.close()
+            conn.close()
+            return jsonify({"token": access_token, "message": "Login successful"}), 200
+            
+        cursor.close()
+        conn.close()
 
-    if username == "admin" and check_password_hash(simulated_hash, password):
-        access_token = create_access_token(identity=username)
-        return jsonify({"token": access_token, "message": "Login successful"}), 200
-    else:
-        return jsonify({"error": "Invalid username or password"}), 401
+    # Generic error for both wrong username OR wrong password
+    return jsonify({"error": "Invalid username or password"}), 401
 
 @app.route('/api/threats', methods=['GET'])
 def get_threat_logs():
@@ -89,6 +110,124 @@ def get_threat_logs():
         return jsonify(threats)
     return jsonify({"error": "Database connection failed"}), 500
 
+@app.route('/api/logs', methods=['GET'])
+def get_system_logs():
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Grab the 50 most recent logs from the new table your DBA is building
+        cursor.execute("SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 50")
+        logs = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(logs)
+    return jsonify({"error": "Database connection failed"}), 500
+
+@app.route('/api/camera-events', methods=['GET'])
+def get_camera_events():
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Grab the 10 most recent physical security events
+        cursor.execute("SELECT * FROM camera_events ORDER BY timestamp DESC LIMIT 10")
+        events = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(events)
+    return jsonify({"error": "Database connection failed"}), 500
+
+@app.route('/api/traffic', methods=['GET'])
+def get_traffic():
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Grab the 30 most recent traffic ticks for the chart
+        cursor.execute("SELECT * FROM network_traffic ORDER BY timestamp DESC LIMIT 30")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(data)
+    return jsonify({"error": "Database connection failed"}), 500
+
+#JUST MOCK DATA TO SHOW REACT WORKS -- 
+@app.route('/api/system-status', methods=['GET'])
+def get_system_status():
+    conn = get_db_connection()
+    threats_count = 0
+    if conn:
+        cursor = conn.cursor()
+        # Count the ACTUAL number of threats in the database!
+        cursor.execute("SELECT COUNT(*) FROM threats")
+        threats_count = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+
+    # Generate live, breathing server statistics
+    status_data = {
+        "uptime": round(random.uniform(99.95, 99.99), 2),
+        "components": [
+            {"name": "Web Server", "status": "online", "load": random.randint(40, 85)},
+            {"name": "Database", "status": "online", "load": random.randint(30, 70)},
+            {"name": "Firewall", "status": "online", "load": random.randint(20, 60)},
+            {"name": "Load Balancer", "status": "online", "load": random.randint(40, 80)},
+            {"name": "VPN Gateway", "status": "warning" if random.random() > 0.8 else "online", "load": random.randint(60, 95)},
+            {"name": "Network Switch", "status": "online", "load": random.randint(20, 50)},
+        ],
+        "metrics": [
+            {"label": "Threats Blocked (24h)", "value": str(threats_count), "trend": "+12%", "status": "success"},
+            {"label": "Active Firewall Rules", "value": "342", "trend": "+5", "status": "info"},
+            {"label": "Failed Login Attempts", "value": str(random.randint(0, 15)), "trend": "-8%", "status": "warning"},
+            {"label": "Malware Detected", "value": "0", "trend": "-15%", "status": "success"},
+        ],
+        "network": [
+            {"name": "Primary Gateway", "status": "Operational", "latency": f"{random.randint(8, 15)}ms", "uptime": "99.99%"},
+            {"name": "Secondary Gateway", "status": "Operational", "latency": f"{random.randint(12, 25)}ms", "uptime": "99.97%"},
+            {"name": "DNS Servers", "status": "Operational", "latency": f"{random.randint(5, 12)}ms", "uptime": "100%"},
+            {"name": "External API", "status": "Degraded" if random.random() > 0.9 else "Operational", "latency": f"{random.randint(40, 150)}ms", "uptime": "98.50%"},
+        ]
+    }
+    return jsonify(status_data)
+
+@app.route('/api/dashboard-summary', methods=['GET'])
+def get_dashboard_summary():
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # 1. Get the single most recent traffic tick
+        cursor.execute("SELECT requests_per_sec FROM network_traffic ORDER BY timestamp DESC LIMIT 1")
+        traffic_row = cursor.fetchone()
+        current_traffic = traffic_row['requests_per_sec'] if traffic_row else 0
+
+        # 2. Get the total number of blocked threats
+        cursor.execute("SELECT COUNT(*) as count FROM threats")
+        threats_count = cursor.fetchone()['count']
+
+        # 3. Get the 5 most recent system logs
+        cursor.execute("SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 5")
+        recent_logs = cursor.fetchall()
+
+        # 4. Get the 2 most recent alerts
+        cursor.execute("SELECT * FROM threats ORDER BY timestamp DESC LIMIT 2")
+        recent_alerts = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # Package it all together
+        summary = {
+            "currentTraffic": current_traffic,
+            "activeConnections": int(current_traffic * 2.5) if current_traffic else random.randint(500, 1500),
+            "blockedThreats": threats_count,
+            "serverLoad": random.randint(40, 75), # Random for now, but could use psutil!
+            "recentLogs": recent_logs,
+            "recentAlerts": recent_alerts
+        }
+
+        return jsonify(summary)
+    return jsonify({"error": "Database connection failed"}), 500
+
+#blocking api route -- jwt
 @app.route('/api/block', methods=['POST'])
 @jwt_required() 
 @limiter.limit("5 per minute") 

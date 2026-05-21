@@ -6,37 +6,44 @@ interface StatusIndicatorsProps {
 }
 
 export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
-  const [uptime, setUptime] = useState(99.98);
+  // 1. Set up a secure default state so the UI doesn't crash while loading
+  const [statusData, setStatusData] = useState({
+    uptime: 99.98,
+    components: [] as any[],
+    metrics: [] as any[],
+    network: [] as any[]
+  });
 
+  // 2. Fetch the live hybrid data from Python
   useEffect(() => {
-    const interval = setInterval(() => {
-      setUptime(prev => Math.min(99.99, prev + Math.random() * 0.01));
-    }, 5000);
+    const fetchStatus = () => {
+      fetch('http://127.0.0.1:5000/api/system-status')
+        .then((res) => res.json())
+        .then((data) => {
+          setStatusData(data);
+        })
+        .catch((err) => console.error("Database Connection Failed:", err));
+    };
+
+    fetchStatus();
+    
+    // Refresh the hardware monitors every 5 seconds
+    const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const systemComponents = [
-    { name: 'Web Server', status: 'online', load: 67, icon: Server, color: 'green' },
-    { name: 'Database', status: 'online', load: 45, icon: Database, color: 'green' },
-    { name: 'Firewall', status: 'online', load: 32, icon: Shield, color: 'green' },
-    { name: 'Load Balancer', status: 'online', load: 58, icon: Activity, color: 'green' },
-    { name: 'VPN Gateway', status: 'warning', load: 89, icon: Lock, color: 'yellow' },
-    { name: 'Network Switch', status: 'online', load: 41, icon: Wifi, color: 'green' },
-  ];
-
-  const securityMetrics = [
-    { label: 'Threats Blocked (24h)', value: '1,247', trend: '+12%', status: 'success' },
-    { label: 'Active Firewall Rules', value: '342', trend: '+5', status: 'info' },
-    { label: 'Failed Login Attempts', value: '23', trend: '-8%', status: 'warning' },
-    { label: 'Malware Detected', value: '7', trend: '-15%', status: 'success' },
-  ];
-
-  const networkStatus = [
-    { name: 'Primary Gateway', status: 'Operational', latency: '12ms', uptime: '99.99%' },
-    { name: 'Secondary Gateway', status: 'Operational', latency: '15ms', uptime: '99.97%' },
-    { name: 'DNS Servers', status: 'Operational', latency: '8ms', uptime: '100%' },
-    { name: 'External API', status: 'Degraded', latency: '245ms', uptime: '98.50%' },
-  ];
+  // Helper function to map text from the database to React Icons
+  const getIconForComponent = (name: string) => {
+    switch (name) {
+      case 'Web Server': return Server;
+      case 'Database': return Database;
+      case 'Firewall': return Shield;
+      case 'Load Balancer': return Activity;
+      case 'VPN Gateway': return Lock;
+      case 'Network Switch': return Wifi;
+      default: return Server;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -53,14 +60,14 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
                   System Uptime
                 </p>
                 <p className={`text-2xl mt-1 ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
-                  {uptime.toFixed(2)}%
+                  {statusData.uptime.toFixed(2)}%
                 </p>
               </div>
               <CheckCircle className={`w-8 h-8 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
             </div>
           </div>
 
-          {securityMetrics.slice(0, 3).map((metric, index) => (
+          {statusData.metrics.slice(0, 3).map((metric, index) => (
             <div
               key={index}
               className={`p-4 rounded-lg ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-50'}`}
@@ -89,8 +96,8 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {systemComponents.map((component, index) => {
-            const Icon = component.icon;
+          {statusData.components.map((component, index) => {
+            const Icon = getIconForComponent(component.name);
             return (
               <div
                 key={index}
@@ -151,7 +158,7 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
         </h3>
 
         <div className="space-y-3">
-          {networkStatus.map((item, index) => (
+          {statusData.network.map((item, index) => (
             <div
               key={index}
               className={`p-4 rounded-lg border ${darkMode ? 'bg-[#0f1f35] border-blue-900/30' : 'bg-white border-gray-200'}`}

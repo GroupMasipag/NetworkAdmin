@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Camera, Maximize2, Volume2, VolumeX, Video, VideoOff } from 'lucide-react';
 
 interface LiveCameraProps {
@@ -8,13 +8,42 @@ interface LiveCameraProps {
 export default function LiveCamera({ darkMode }: LiveCameraProps) {
   const [isMuted, setIsMuted] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
+  
+  // 1. Create a blank state to hold the live database camera events
+  const [events, setEvents] = useState<any[]>([]);
+
+  // 2. The Link: Fetch the data from Python
+  useEffect(() => {
+    const fetchCameraEvents = () => {
+      fetch('http://127.0.0.1:5000/api/camera-events')
+        .then((res) => res.json())
+        .then((data) => {
+          // 3. Translate Python's database columns into React's UI format
+          const liveData = data.map((item: any) => ({
+            time: new Date(item.timestamp).toLocaleTimeString(),
+            camera: item.camera_id,
+            event: item.event_description,
+            severity: item.severity.toLowerCase()
+          }));
+          
+          setEvents(liveData);
+        })
+        .catch((err) => console.error("Database Connection Failed:", err));
+    };
+
+    fetchCameraEvents();
+    
+    // Refresh the camera events every 15 seconds
+    const interval = setInterval(fetchCameraEvents, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const camera = {
     name: 'CAM-01 - Main Entrance',
     location: 'Building A - Front',
     status: 'online'
   };
-
+  
   return (
     <div className="space-y-6">
       <div className={`p-6 rounded-lg ${darkMode ? 'bg-[#1a2942] border border-blue-900/30' : 'bg-white border border-gray-200'}`}>
@@ -90,12 +119,7 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
           Recent Events
         </h3>
         <div className="space-y-3">
-          {[
-            { time: '14:35:22', camera: 'CAM-01', event: 'Motion detected at main entrance', severity: 'info' },
-            { time: '14:33:15', camera: 'CAM-02', event: 'Door opened - Server room access', severity: 'warning' },
-            { time: '14:30:45', camera: 'CAM-05', event: 'Temperature alert in data center', severity: 'warning' },
-            { time: '14:28:10', camera: 'CAM-03', event: 'Vehicle entered parking lot', severity: 'info' },
-          ].map((event, index) => (
+          {events.map((event, index) => (
             <div
               key={index}
               className={`p-3 rounded-lg border ${darkMode ? 'bg-[#0f1f35] border-blue-900/30' : 'bg-gray-50 border-gray-200'}`}

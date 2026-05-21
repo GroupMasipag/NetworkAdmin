@@ -16,9 +16,35 @@ export default function LoginPage({ onLogin, darkMode, setDarkMode }: LoginPageP
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+
+    try {
+      // 1. Send the username and password to the Python Bouncer
+      const response = await fetch('http://127.0.0.1:5000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // 2. Success! Save the VIP wristband (JWT) to the browser's memory
+        localStorage.setItem('masipag_token', data.token);
+        
+        // 3. Trigger the dashboard to open
+        onLogin();
+      } else {
+        // 4. Show an error popup if they typed the wrong password
+        alert(data.error || "Login failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Login Connection Error:", error);
+      alert("Could not connect to the backend server. Is Python running?");
+    }
   };
 
   return (

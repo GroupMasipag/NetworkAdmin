@@ -14,45 +14,46 @@ interface TrafficData {
 }
 
 export default function TrafficGraph({ darkMode }: TrafficGraphProps) {
-  const [data, setData] = useState<TrafficData[]>(() => {
-    const initialData: TrafficData[] = [];
-    const now = Date.now();
-    for (let i = 29; i >= 0; i--) {
-      const traffic = Math.floor(Math.random() * 500) + 300;
-      initialData.push({
-        time: new Date(now - i * 2000).toLocaleTimeString(),
-        traffic,
-        threats: Math.floor(Math.random() * 20),
-        bandwidth: `${(traffic * 0.15).toFixed(1)} MB/s`,
-        packets: Math.floor(traffic * 1.5),
-      });
-    }
-    return initialData;
-  });
+  const [data, setData] = useState<TrafficData[]>([]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setData(prevData => {
-        const newData = [...prevData.slice(1)];
-        const traffic = Math.floor(Math.random() * 500) + 300;
-        newData.push({
-          time: new Date().toLocaleTimeString(),
-          traffic,
-          threats: Math.floor(Math.random() * 20),
-          bandwidth: `${(traffic * 0.15).toFixed(1)} MB/s`,
-          packets: Math.floor(traffic * 1.5),
-        });
-        return newData;
-      });
-    }, 2000);
+    const fetchTraffic = () => {
+      fetch('http://127.0.0.1:5000/api/traffic')
+        .then((res) => res.json())
+        .then((dbData) => {
+          // Safety check: ensure we actually got an array back from Python
+          if (!Array.isArray(dbData)) return;
 
+          const liveData = dbData.map((item: any) => ({
+            time: new Date(item.timestamp).toLocaleTimeString(),
+            traffic: item.requests_per_sec || 0,
+            threats: item.active_threats || 0,
+            bandwidth: `${item.bandwidth_mbps || 0} MB/s`,
+            packets: item.packets || 0,
+          }));
+          
+          // Reverse the data so the newest is on the right side/top of the graph
+          setData(liveData.reverse());
+        })
+        .catch((err) => console.error("Database Connection Failed:", err));
+    };
+
+    fetchTraffic();
+    
+    // Refresh the graph every 2 seconds to match your UI's fast pace
+    const interval = setInterval(fetchTraffic, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  const avgTraffic = Math.floor(data.reduce((acc, curr) => acc + curr.traffic, 0) / data.length);
-  const currentTraffic = data[data.length - 1]?.traffic || 0;
-  const trafficTrend = currentTraffic > avgTraffic ? 'up' : 'down';
-  const trafficChange = Math.abs(((currentTraffic - avgTraffic) / avgTraffic) * 100).toFixed(1);
+  // SAFETY NET: Prevent Division by Zero crashes when the database is empty!
+  const avgTraffic = data.length > 0 
+    ? Math.floor(data.reduce((acc, curr) => acc + curr.traffic, 0) / data.length)
+    : 0;
+  const currentTraffic = data.length > 0 ? data[data.length - 1].traffic : 0;
+  const trafficTrend = currentTraffic >= avgTraffic ? 'up' : 'down';
+  const trafficChange = avgTraffic > 0 
+    ? Math.abs(((currentTraffic - avgTraffic) / avgTraffic) * 100).toFixed(1)
+    : "0.0";
 
   return (
     <div className="space-y-6">
@@ -96,7 +97,7 @@ export default function TrafficGraph({ darkMode }: TrafficGraphProps) {
               Active Threats
             </p>
             <p className={`text-2xl ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
-              {data[data.length - 1]?.threats || 0}
+              {data.length > 0 ? data[data.length - 1].threats : 0}
             </p>
             <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
               detected
@@ -107,7 +108,7 @@ export default function TrafficGraph({ darkMode }: TrafficGraphProps) {
               Bandwidth
             </p>
             <p className={`text-2xl ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>
-              {data[data.length - 1]?.bandwidth || '0 MB/s'}
+              {data.length > 0 ? data[data.length - 1].bandwidth : '0 MB/s'}
             </p>
             <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
               current usage
