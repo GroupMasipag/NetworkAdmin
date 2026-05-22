@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Shield, Info, X } from 'lucide-react';
+// 1. Import the MitigationModal component 
+import MitigationModal from './MitigationModal'; 
 
 interface SecurityAlertTableProps {
   darkMode: boolean;
@@ -17,44 +19,35 @@ interface Alert {
 
 export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps) {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
-  
-  // 1. Create a blank state to hold the live database alerts
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  
+  // 2. Add state to track whether the mitigation console overlay is visible
+  const [isMitigationOpen, setIsMitigationOpen] = useState(false);
 
-  // 2. The Link: Fetch the data from Python
+  // Fetch data from local Flask API
   useEffect(() => {
     const fetchThreats = () => {
-      // Hit your local Flask API
       fetch('https://networkadmin.onrender.com/api/threats')
         .then((res) => res.json())
         .then((data) => {
-          // 3. Translate Python's database format into React's UI format
           const liveData = data.map((item: any) => ({
             id: item.id,
-            // Convert Postgres timestamp to a readable time
             time: new Date(item.timestamp).toLocaleTimeString(), 
-            // Ensure severity matches your UI colors (low, medium, high)
             severity: item.severity.toLowerCase(), 
             type: item.attack_type,
             source: item.ip,
             description: `Automated detection: ${item.attack_type} detected originating from IP address ${item.ip}.`,
             status: 'active'
           }));
-          
-          // 4. Update the screen with the live data!
           setAlerts(liveData);
         })
         .catch((err) => console.error("Database Connection Failed:", err));
     };
 
-    // Fetch immediately on load
     fetchThreats();
-
-    // Automatically refresh the table every 15 seconds
     const interval = setInterval(fetchThreats, 15000);
     return () => clearInterval(interval);
   }, []);
-
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -106,24 +99,12 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
           <table className="w-full">
             <thead>
               <tr className={`border-b ${darkMode ? 'border-blue-900/30' : 'border-gray-200'}`}>
-                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Time
-                </th>
-                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Severity
-                </th>
-                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Type
-                </th>
-                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Source
-                </th>
-                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Status
-                </th>
-                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Action
-                </th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Time</th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Severity</th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Type</th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Source</th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Status</th>
+                <th className={`px-4 py-3 text-left text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -133,9 +114,7 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
                   className={`border-b ${darkMode ? 'border-blue-900/30 hover:bg-[#0f1f35]' : 'border-gray-100 hover:bg-gray-50'} transition-colors cursor-pointer`}
                   onClick={() => setSelectedAlert(alert)}
                 >
-                  <td className={`px-4 py-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {alert.time}
-                  </td>
+                  <td className={`px-4 py-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{alert.time}</td>
                   <td className="px-4 py-4">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getSeverityBg(alert.severity)} ${getSeverityColor(alert.severity)}`}>
                       {alert.severity === 'critical' || alert.severity === 'high' ? (
@@ -148,12 +127,8 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
                       {alert.severity.toUpperCase()}
                     </span>
                   </td>
-                  <td className={`px-4 py-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {alert.type}
-                  </td>
-                  <td className={`px-4 py-4 text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {alert.source}
-                  </td>
+                  <td className={`px-4 py-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{alert.type}</td>
+                  <td className={`px-4 py-4 text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{alert.source}</td>
                   <td className="px-4 py-4">
                     <span className={`text-xs font-medium ${getStatusColor(alert.status)}`}>
                       {alert.status.toUpperCase()}
@@ -173,7 +148,8 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
         </div>
       </div>
 
-      {selectedAlert && (
+      {/* Alert Details Modal Backdrop */}
+      {selectedAlert && !isMitigationOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedAlert(null)}>
           <div
             className={`max-w-2xl w-full p-6 rounded-xl shadow-2xl ${darkMode ? 'bg-[#1a2942]' : 'bg-white'}`}
@@ -227,7 +203,9 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
             </div>
 
             <div className="flex gap-3 mt-6">
+              {/* 3. Wire up the Take Action click handler to activate the mitigation console view */}
               <button
+                onClick={() => setIsMitigationOpen(true)}
                 className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                   darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-900 hover:bg-blue-800 text-white'
                 }`}
@@ -245,6 +223,26 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
             </div>
           </div>
         </div>
+      )}
+
+      {/* 4. Display the Mitigation Console when active */}
+      {isMitigationOpen && selectedAlert && (
+        <MitigationModal
+          alert={{
+            id: selectedAlert.id,
+            type: selectedAlert.type,
+            source: selectedAlert.source,
+            severity: selectedAlert.severity
+          }}
+          darkMode={darkMode}
+          // Pressing back rolls the view back into the alert details card
+          onBack={() => setIsMitigationOpen(false)}
+          // Pressing close exits out of both layers completely
+          onClose={() => {
+            setIsMitigationOpen(false);
+            setSelectedAlert(null);
+          }}
+        />
       )}
     </div>
   );
