@@ -1,18 +1,16 @@
-.gitignore = ignores library from vscode
+Overview: A Network Administration Dashboard System that Monitors a CCTV connected into a topology using switches and router
 
-app.py = mostly includes python for flask application - this runs on the server ( render ) / BACKEND
+LIVE LINK: to be followed
 
-Static contains css, jss and images which is mostly design / FRONTEND
+Setup
+Backend
+- Install WSL
+- Open in WSL folder
+- Make a venv folder
+- source venv/bin/activate
+- run the python app
 
-template contains the html / FRONTEND
-
-requirements.txt are python dependencies
-
-Procfile just tells render how to run the code / app 
-
-
-FRONTEND - CLIENT SIDE
-BACKEND - SERVER SIDE
-BEFORE MAG CHANGE CODE INSTALL MUNA REQUIREMENTS ( BACKEND ONLY ) - install venv then install requirements.txt
-
-if push doesnt work and throws an error regarding merging - "git pull origin main"
+Frontend
+- npm install
+    - sudo apt get npm install
+- run using vite
