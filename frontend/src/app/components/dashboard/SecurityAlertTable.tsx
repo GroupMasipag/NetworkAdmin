@@ -47,19 +47,18 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
           return res.json();
         })
         .then((data) => {
-          // 4. Safety check for valid array
           if (!data || !Array.isArray(data)) return;
-
           const liveData = data.map((item: any) => ({
-            id: item.id,
-            time: new Date(item.timestamp).toLocaleTimeString(), 
-            severity: item.severity.toLowerCase(), 
-            type: item.attack_type,
-            source: item.ip,
-            description: `Automated detection: ${item.attack_type} detected originating from IP address ${item.ip}.`,
-            status: 'active'
+            id: item.id || Math.random(),
+            time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : 'Unknown Time',
+            severity: item.severity ? item.severity.toLowerCase() : 'medium', 
+            type: item.attack_type || 'Unknown Threat',
+            source: item.ip || 'Unknown IP',
+            description: `Automated detection: ${item.attack_type || 'Suspicious activity'} detected originating from IP address ${item.ip || 'Unknown'}.`,
+            status: 'active' as 'active' | 'mitigated' | 'investigating'
+
           }));
-          status: 'active' as 'active' | 'mitigated' | 'investigating'
+          setAlerts(liveData);
         })
         .catch((err) => console.error("Database Connection Failed:", err));
     };
