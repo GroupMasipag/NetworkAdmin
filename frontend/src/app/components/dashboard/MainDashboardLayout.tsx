@@ -17,9 +17,26 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
 
   useEffect(() => {
     const fetchSummary = () => {
-      fetch('https://networkadmin.onrender.com/api/dashboard-summary')
-        .then((res) => res.json())
+      // 1. Grab the VIP wristband from the browser's memory
+      const token = localStorage.getItem('masipag_token');
+
+      // 2. Attach it to the "Headers" of the request
+      fetch('https://networkadmin.onrender.com/api/dashboard-summary', {
+        headers: {
+          'Authorization': `Bearer ${token}` 
+        }
+      })
+        .then((res) => {
+          // 3. Security Check: If the token is missing or expired, Python kicks us out
+          if (res.status === 401) {
+            console.error("Unauthorized access! Token invalid or missing.");
+            // (Force logout)
+            return null; 
+          }
+          return res.json();
+        })
         .then((data) => {
+          if (!data) return; // Stops if gets blocked 
           setSummary({
             currentTraffic: data.currentTraffic,
             activeConnections: data.activeConnections,

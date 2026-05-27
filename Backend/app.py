@@ -15,9 +15,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # 1. SETUP & DATABASE LINK
 load_dotenv() 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}) # Allows frontend to talk to backend
+CORS(app, resources={r"/api/*": {
+    "origins": [
+        "http://localhost:5173", # Local development URL for React frontend
+        "https://networkadministrationgroup6.onrender.com" # Production URL for React frontend
+    ]}}) # Allows frontend to talk to backend
 
-limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
+limiter = Limiter(
+    get_remote_address, 
+    app=app, 
+    storage_uri="memory://",
+    default_limits=["200 per minute"]
+    ) # Basic rate limiting to prevent abuse; can be adjusted as needed
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "fallback-secret-key")
 jwt = JWTManager(app)
@@ -99,6 +108,7 @@ def login():
     return jsonify({"error": "Invalid username or password"}), 401
 
 @app.route('/api/threats', methods=['GET'])
+@jwt_required()
 def get_threat_logs():
     conn = get_db_connection()
     if conn:
@@ -111,6 +121,7 @@ def get_threat_logs():
     return jsonify({"error": "Database connection failed"}), 500
 
 @app.route('/api/logs', methods=['GET'])
+@jwt_required()
 def get_system_logs():
     conn = get_db_connection()
     if conn:
@@ -124,6 +135,7 @@ def get_system_logs():
     return jsonify({"error": "Database connection failed"}), 500
 
 @app.route('/api/camera-events', methods=['GET'])
+@jwt_required()
 def get_camera_events():
     conn = get_db_connection()
     if conn:
@@ -137,6 +149,7 @@ def get_camera_events():
     return jsonify({"error": "Database connection failed"}), 500
 
 @app.route('/api/traffic', methods=['GET'])
+@jwt_required()
 def get_traffic():
     conn = get_db_connection()
     if conn:
@@ -151,6 +164,7 @@ def get_traffic():
 
 #JUST MOCK DATA TO SHOW REACT WORKS -- 
 @app.route('/api/system-status', methods=['GET'])
+@jwt_required()
 def get_system_status():
     conn = get_db_connection()
     threats_count = 0
@@ -189,6 +203,7 @@ def get_system_status():
     return jsonify(status_data)
 
 @app.route('/api/dashboard-summary', methods=['GET'])
+@jwt_required()
 def get_dashboard_summary():
     conn = get_db_connection()
     if conn:
