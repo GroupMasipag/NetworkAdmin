@@ -92,8 +92,8 @@ def login():
             access_token = create_access_token(identity=username)
             
             cursor.execute(
-                "INSERT INTO app_usage (username, user_ip) VALUES (%s, %s)",
-                (username, request.remote_addr)
+                "INSERT INTO app_usage (username, user_ip, action) VALUES (%s, %s, %s)",
+                (username, request.remote_addr, 'Successful Login')
             )
             conn.commit()
             
@@ -118,6 +118,47 @@ def get_threat_logs():
         cursor.close()
         conn.close()
         return jsonify(threats)
+    return jsonify({"error": "Database connection failed"}), 500
+
+@app.route('/api/audit-trail', methods=['GET'])
+@jwt_required()
+def get_audit_trail():
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Fetch the 50 most recent user actions
+        cursor.execute("SELECT username, user_ip, action, timestamp FROM app_usage ORDER BY timestamp DESC LIMIT 50")
+        audit_logs = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(audit_logs)
+    return jsonify({"error": "Database connection failed"}), 500
+
+@app.route('/api/logout', methods=['POST'])
+@jwt_required()
+def logout():
+    # 1. Identify who is logging out based on their JWT wristband
+    current_user = get_jwt_identity()
+    user_ip = request.remote_addr
+
+    # 2. Record the action in the database
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO app_usage (username, user_ip, action) VALUES (%s, %s, %s)",
+                (current_user, user_ip, 'Logout')
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print(f"🔒 [SECURITY] User {current_user} logged out successfully.")
+            return jsonify({"message": "Successfully logged out"}), 200
+        except Exception as e:
+            print(f"Logout Error: {e}")
+            return jsonify({"error": "Failed to log logout event"}), 500
+
     return jsonify({"error": "Database connection failed"}), 500
 
 @app.route('/api/logs', methods=['GET'])

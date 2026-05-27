@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Shield, AlertTriangle, Users, Server, Globe, Camera } from 'lucide-react';
+import { Shield, AlertTriangle, Users, Server, Globe, Camera, LogOut } from 'lucide-react';
 
 interface MainDashboardLayoutProps {
   darkMode: boolean;
@@ -15,28 +15,47 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
     recentAlerts: [] as any[]
   });
 
+  // 1. THE LOGOUT FUNCTION
+  const handleLogout = async () => {
+    const token = localStorage.getItem('masipag_token');
+    if (token) {
+      try {
+        await fetch('https://networkadmin.onrender.com/api/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (error) {
+        console.error("Failed to contact server during logout:", error);
+      }
+    }
+    // Destroy the wristband and redirect
+    localStorage.removeItem('masipag_token');
+    window.location.href = '/'; 
+  };
+
   useEffect(() => {
     const fetchSummary = () => {
-      // 1. Grab the VIP wristband from the browser's memory
       const token = localStorage.getItem('masipag_token');
 
-      // 2. Attach it to the "Headers" of the request
       fetch('https://networkadmin.onrender.com/api/dashboard-summary', {
         headers: {
           'Authorization': `Bearer ${token}` 
         }
       })
         .then((res) => {
-          // 3. Security Check: If the token is missing or expired, Python kicks us out
+          // 2. THE 401 FIX: Actually force the logout if the token dies
           if (res.status === 401) {
             console.error("Unauthorized access! Token invalid or missing.");
-            // (Force logout)
+            localStorage.removeItem('masipag_token');
+            window.location.href = '/';
             return null; 
           }
           return res.json();
         })
         .then((data) => {
-          if (!data) return; // Stops if gets blocked 
+          if (!data) return; 
           setSummary({
             currentTraffic: data.currentTraffic,
             activeConnections: data.activeConnections,
@@ -63,6 +82,21 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
 
   return (
     <div className="space-y-6">
+      
+      {/* 3. NEW HEADER ROW: Holds the Title and the Logout Button */}
+      <div className="flex items-center justify-between">
+        <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          Network Overview
+        </h2>
+        <button 
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          Secure Logout
+        </button>
+      </div>
+
       {/* Top Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className={`p-6 rounded-xl border ${darkMode ? 'bg-[#1a2942] border-blue-900/30' : 'bg-white border-gray-200'}`}>
