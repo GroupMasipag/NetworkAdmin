@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Server, Shield, Activity, Database, Wifi, Lock, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface StatusIndicatorsProps {
@@ -24,25 +24,28 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
       })
         .then((res) => {
           if (res.status === 401) {
-            console.error("Token expired or missing in StatusIndicators");
-            return null;
+            console.error("Token expired! Redirecting to login...");
+            localStorage.removeItem('masipag_token');
+            window.location.href = '/'; 
+            return null; 
           }
           return res.json();
         })
         .then((data) => {
-          if (!data || data.msg) return; 
+          // Safety Check: Stop if the data is null or contains an error message
+          if (!data || data.msg || data.error) return; 
+          
           setStatusData({
-            uptime: data.uptime || 99.98,
+            uptime: data.uptime ?? 99.98,
             components: data.components || [],
             metrics: data.metrics || [],
             network: data.network || []
           });
         })
-        .catch((err) => console.error("Database Connection Failed:", err));
+        .catch((err) => console.error("API Fetch Failed:", err));
     };
 
     fetchStatus();
-    
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -73,32 +76,33 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
                 <p className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-600'}`}>
                   System Uptime
                 </p>
+                {/* THE OPTIONAL CHAINING FIX: Safely fallback to 0 if data is missing */}
                 <p className={`text-2xl mt-1 ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
-                  {statusData.uptime.toFixed(2)}%
+                  {Number(statusData?.uptime || 0).toFixed(2)}%
                 </p>
               </div>
               <CheckCircle className={`w-8 h-8 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
             </div>
           </div>
 
-          {statusData.metrics.slice(0, 3).map((metric, index) => (
+          {(statusData?.metrics || []).slice(0, 3).map((metric, index) => (
             <div
               key={index}
               className={`p-4 rounded-lg ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-50'}`}
             >
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {metric.label}
+                {metric?.label}
               </p>
               <div className="flex items-baseline gap-2 mt-1">
                 <p className={`text-2xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {metric.value}
+                  {metric?.value}
                 </p>
                 <span className={`text-sm ${
-                  metric.status === 'success' ? 'text-green-500' :
-                  metric.status === 'warning' ? 'text-yellow-500' :
+                  metric?.status === 'success' ? 'text-green-500' :
+                  metric?.status === 'warning' ? 'text-yellow-500' :
                   'text-blue-500'
                 }`}>
-                  {metric.trend}
+                  {metric?.trend}
                 </span>
               </div>
             </div>
@@ -110,8 +114,8 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {statusData.components.map((component, index) => {
-            const Icon = getIconForComponent(component.name);
+          {(statusData?.components || []).map((component, index) => {
+            const Icon = getIconForComponent(component?.name);
             return (
               <div
                 key={index}
@@ -120,22 +124,22 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${
-                      component.status === 'online'
+                      component?.status === 'online'
                         ? darkMode ? 'bg-green-900/30' : 'bg-green-100'
                         : darkMode ? 'bg-yellow-900/30' : 'bg-yellow-100'
                     }`}>
                       <Icon className={`w-5 h-5 ${
-                        component.status === 'online' ? 'text-green-500' : 'text-yellow-500'
+                        component?.status === 'online' ? 'text-green-500' : 'text-yellow-500'
                       }`} />
                     </div>
                     <div>
                       <h4 className={`${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {component.name}
+                        {component?.name}
                       </h4>
                       <p className={`text-sm ${
-                        component.status === 'online' ? 'text-green-500' : 'text-yellow-500'
+                        component?.status === 'online' ? 'text-green-500' : 'text-yellow-500'
                       }`}>
-                        {component.status.toUpperCase()}
+                        {component?.status?.toUpperCase()}
                       </p>
                     </div>
                   </div>
@@ -144,22 +148,22 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
                       Load
                     </p>
                     <p className={`${
-                      component.load > 80 ? 'text-red-500' :
-                      component.load > 60 ? 'text-yellow-500' :
+                      component?.load > 80 ? 'text-red-500' :
+                      component?.load > 60 ? 'text-yellow-500' :
                       'text-green-500'
                     }`}>
-                      {component.load}%
+                      {component?.load || 0}%
                     </p>
                   </div>
                 </div>
                 <div className={`w-full h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                   <div
                     className={`h-full transition-all ${
-                      component.load > 80 ? 'bg-red-500' :
-                      component.load > 60 ? 'bg-yellow-500' :
+                      component?.load > 80 ? 'bg-red-500' :
+                      component?.load > 60 ? 'bg-yellow-500' :
                       'bg-green-500'
                     }`}
-                    style={{ width: `${component.load}%` }}
+                    style={{ width: `${component?.load || 0}%` }}
                   />
                 </div>
               </div>
@@ -172,7 +176,7 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
         </h3>
 
         <div className="space-y-3">
-          {statusData.network.map((item, index) => (
+          {(statusData?.network || []).map((item, index) => (
             <div
               key={index}
               className={`p-4 rounded-lg border ${darkMode ? 'bg-[#0f1f35] border-blue-900/30' : 'bg-white border-gray-200'}`}
@@ -180,16 +184,16 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${
-                    item.status === 'Operational' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'
+                    item?.status === 'Operational' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'
                   }`} />
                   <div>
                     <h4 className={`${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {item.name}
+                      {item?.name}
                     </h4>
                     <p className={`text-sm ${
-                      item.status === 'Operational' ? 'text-green-500' : 'text-yellow-500'
+                      item?.status === 'Operational' ? 'text-green-500' : 'text-yellow-500'
                     }`}>
-                      {item.status}
+                      {item?.status}
                     </p>
                   </div>
                 </div>
@@ -199,7 +203,7 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
                       Latency
                     </p>
                     <p className={`${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {item.latency}
+                      {item?.latency}
                     </p>
                   </div>
                   <div>
@@ -207,7 +211,7 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
                       Uptime
                     </p>
                     <p className={`${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {item.uptime}
+                      {item?.uptime}
                     </p>
                   </div>
                 </div>

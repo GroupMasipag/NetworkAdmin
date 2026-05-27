@@ -39,7 +39,9 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
         .then((res) => {
           // 3. The 401 Safety Net
           if (res.status === 401) {
-            console.error("Token expired or missing in SecurityAlertTable");
+            console.error("Token expired! Redirecting to login...");
+            localStorage.removeItem('masipag_token');
+            window.location.href = '/'; 
             return null; 
           }
           return res.json();
@@ -57,7 +59,7 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
             description: `Automated detection: ${item.attack_type} detected originating from IP address ${item.ip}.`,
             status: 'active'
           }));
-          setAlerts(liveData);
+          status: 'active' as 'active' | 'mitigated' | 'investigating'
         })
         .catch((err) => console.error("Database Connection Failed:", err));
     };

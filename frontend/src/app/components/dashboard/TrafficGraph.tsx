@@ -30,8 +30,10 @@ export default function TrafficGraph({ darkMode }: TrafficGraphProps) {
         .then((res) => {
           // 3. SAFETY NET: Catch the 401 before it breaks React
           if (res.status === 401) {
-            console.error("Token expired or missing in TrafficGraph");
-            return null; // Stop processing so React doesn't crash
+            console.error("Token expired! Redirecting to login...");
+            localStorage.removeItem('masipag_token');
+            window.location.href = '/'; 
+            return null; 
           }
           return res.json();
         })

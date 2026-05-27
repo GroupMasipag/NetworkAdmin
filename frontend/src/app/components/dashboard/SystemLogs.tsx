@@ -38,8 +38,10 @@ export default function SystemLogs({ darkMode }: SystemLogsProps) {
         .then((res) => {
           // 3. Catch the 401 before it causes the Black Screen of Death
           if (res.status === 401) {
-            console.error("Token expired or missing in SystemLogs");
-            return null; // Stop processing safely
+            console.error("Token expired! Redirecting to login...");
+            localStorage.removeItem('masipag_token');
+            window.location.href = '/'; 
+            return null; 
           }
           return res.json();
         })
