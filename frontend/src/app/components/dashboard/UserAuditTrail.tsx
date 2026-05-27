@@ -26,10 +26,11 @@ export default function UserAuditTrail({ darkMode }: UserAuditTrailProps) {
         }
       })
         .then((res) => {
-          if (!res.ok) throw new Error("Failed to authenticate");
+          if (res.status === 401) return null; // Safety net
           return res.json();
         })
         .then((data) => {
+          if (!data || data.error) return;
           setLogs(data);
           setLoading(false);
         })
@@ -40,7 +41,6 @@ export default function UserAuditTrail({ darkMode }: UserAuditTrailProps) {
     };
 
     fetchAuditLogs();
-    // Refresh the logs every 10 seconds
     const interval = setInterval(fetchAuditLogs, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -58,24 +58,28 @@ export default function UserAuditTrail({ darkMode }: UserAuditTrailProps) {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
+      {/* THE FIX: Constrained height to 400px and added a vertical scrollbar */}
+      <div className="overflow-x-auto overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
+        <table className="w-full text-left border-collapse relative">
+          
+          {/* THE FIX: Sticky header so column names don't disappear when scrolling */}
+          <thead className={`sticky top-0 z-10 ${darkMode ? 'bg-[#1a2942]' : 'bg-white'}`}>
             <tr className={`border-b ${darkMode ? 'border-blue-900/30' : 'border-gray-200'}`}>
-              <th className={`pb-3 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <th className={`pb-3 pt-2 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <div className="flex items-center gap-2"><Clock className="w-4 h-4" /> Timestamp</div>
               </th>
-              <th className={`pb-3 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <th className={`pb-3 pt-2 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <div className="flex items-center gap-2"><User className="w-4 h-4" /> User</div>
               </th>
-              <th className={`pb-3 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <th className={`pb-3 pt-2 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <div className="flex items-center gap-2"><Activity className="w-4 h-4" /> Action</div>
               </th>
-              <th className={`pb-3 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <th className={`pb-3 pt-2 font-medium text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <div className="flex items-center gap-2"><Monitor className="w-4 h-4" /> IP Address</div>
               </th>
             </tr>
           </thead>
+          
           <tbody className="divide-y divide-gray-200 dark:divide-blue-900/30">
             {loading ? (
               <tr>

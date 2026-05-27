@@ -241,11 +241,11 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
                 <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No active alerts at this time.</p>
               )}
             </div>
-            <div className="mt-6">
-            <UserAuditTrail darkMode={darkMode} />
-          </div>
           </div>
         </div>
+      </div>
+      <div className="w-full mt-6">
+        <UserAuditTrail darkMode={darkMode} />
       </div>
     </div>
   );
