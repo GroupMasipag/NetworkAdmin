@@ -4,6 +4,7 @@ import time
 import random
 import psycopg2
 import psycopg2.extras
+import psutil
 from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -40,30 +41,52 @@ def get_db_connection():
 
 # 2. DETECTION MECHANIC
 def network_scanner():
-    """Background process to simulate threat detection."""
-    print(">>> [SYSTEM] Scanner Initialized: Monitoring Network...")
-    attack_types = ['DDoS Attempt', 'SQL Injection', 'Unauthorized Login', 'Port Scan']
+    print(">>> [SYSTEM] Hardware Network Monitor Initialized...")
+    # Take an initial snapshot of the network card
+    last_io = psutil.net_io_counters()
 
     while True:
-        time.sleep(15)  
+        # Wait 2 seconds (Matches your React UI TrafficGraph refresh rate!)
+        time.sleep(2)  
+        
+        # Take a new snapshot
+        current_io = psutil.net_io_counters()
+
+        # Calculate bytes moving across the physical network over the last 2 seconds
+        bytes_sent = current_io.bytes_sent - last_io.bytes_sent
+        bytes_recv = current_io.bytes_recv - last_io.bytes_recv
+        total_bytes_per_sec = (bytes_sent + bytes_recv) / 2
+
+        # Convert raw bytes to Mbps (Megabits per second)
+        bandwidth_mbps = (total_bytes_per_sec * 8) / 1_000_000
+
+        # Calculate real packet flow
+        packets_sent = current_io.packets_sent - last_io.packets_sent
+        packets_recv = current_io.packets_recv - last_io.packets_recv
+        packets_per_sec = (packets_sent + packets_recv) / 2
+
+        # Save this snapshot for the next loop's math
+        last_io = current_io 
+
         conn = get_db_connection()
         if conn:
             try:
                 cursor = conn.cursor()
-                detected_ip = f"192.168.1.{random.randint(10, 254)}"
-                attack = random.choice(attack_types)
-                severity = random.choice(['Low', 'Medium', 'High'])
-                
+                # Find out how many real threats are currently active
+                cursor.execute("SELECT COUNT(*) FROM threats WHERE status = 'active'")
+                active_threats = cursor.fetchone()[0]
+
+                # Insert the REAL hardware data into the database
                 cursor.execute(
-                    "INSERT INTO threats (ip, attack_type, severity) VALUES (%s, %s, %s)",
-                    (detected_ip, attack, severity)
+                    """INSERT INTO network_traffic (requests_per_sec, active_threats, bandwidth_mbps, packets) 
+                       VALUES (%s, %s, %s, %s)""",
+                    (int(packets_per_sec), active_threats, round(bandwidth_mbps, 2), int(packets_per_sec))
                 )
                 conn.commit()
-                print(f"⚠️ [DETECTION] Threat logged: {attack} from {detected_ip}")
                 cursor.close()
                 conn.close()
             except Exception as e:
-                print(f"Scanner Loop Error: {e}")
+                print(f"Hardware Monitor Error: {e}")
 
 # 3. START THE SCANNER THREAD
 threading.Thread(target=network_scanner, daemon=True).start()
@@ -104,7 +127,29 @@ def login():
         cursor.close()
         conn.close()
 
-    # Generic error for both wrong username OR wrong password
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor()
+        attacker_ip = request.remote_addr
+        
+        # 1. Log this real event to the Threats table!
+        cursor.execute(
+            "INSERT INTO threats (ip, attack_type, severity, description) VALUES (%s, %s, %s, %s)",
+            (attacker_ip, 'Unauthorized Login Attempt', 'High', f'Failed authentication attempt targeting username: {username}')
+        )
+        
+        # 2. Log it to the System Logs table as a security warning!
+        cursor.execute(
+            "INSERT INTO system_logs (level, category, message, source) VALUES (%s, %s, %s, %s)",
+            ('WARN', 'Security', f'Failed login attempt from {attacker_ip}', 'Auth Server')
+        )
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print(f"🚨 [SECURITY] Failed login logged as threat from IP: {attacker_ip}")
+
+    # Return the generic error to the attacker
     return jsonify({"error": "Invalid username or password"}), 401
 
 @app.route('/api/threats', methods=['GET'])

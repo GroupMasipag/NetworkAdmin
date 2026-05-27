@@ -21,7 +21,25 @@ export default function Dashboard({ onLogout, darkMode, setDarkMode }: Dashboard
   const [currentView, setCurrentView] = useState<ViewType>('main');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleLogoutConfirm = () => {
+  const handleLogoutConfirm = async () => {
+    const token = localStorage.getItem('masipag_token');
+    
+    if (token) {
+      try {
+        // Tell Python to record this logout in the Audit Trail table
+        await fetch('https://networkadmin.onrender.com/api/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (error) {
+        console.error("Failed to log out on server:", error);
+      }
+    }
+    localStorage.removeItem('masipag_token');
+    
+    // Trigger the App.tsx state change to hide the dashboard
     onLogout();
   };
 

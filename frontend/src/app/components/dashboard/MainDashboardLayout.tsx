@@ -88,13 +88,6 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
         <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           Network Overview
         </h2>
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Secure Logout
-        </button>
       </div>
 
       {/* Top Stats Row */}
