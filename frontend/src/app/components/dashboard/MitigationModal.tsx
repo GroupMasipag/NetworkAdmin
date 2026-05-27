@@ -34,19 +34,20 @@ interface LogLine {
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
-const API_BASE = "http://localhost:5000";
+// Removed localhost API_BASE - using the live Render URL directly below
 
 async function callMitigateAPI(
-  path: "/api/mitigate/block" | "/api/mitigate/throttle",
+  threatId: number,
   payload: object
 ): Promise<{ success: boolean; message: string; detail: string }> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    // 1. Pointing to the specific threat ID route we built in app.py
+    const res = await fetch(`https://networkadmin.onrender.com/api/threats/${threatId}/mitigate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // Pass JWT token if your backend requires it for mitigation routes
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        // 2. Fixed token name to match the rest of the app
+        Authorization: `Bearer ${localStorage.getItem("masipag_token")}`,
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(15000),
@@ -71,9 +72,10 @@ async function callMitigateAPI(
 
 async function fetchLogs(alertId: number): Promise<LogLine[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/logs/live?alert_id=${alertId}`, {
+    const res = await fetch(`https://networkadmin.onrender.com/api/logs/live?alert_id=${alertId}`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        // Fixed token name
+        Authorization: `Bearer ${localStorage.getItem("masipag_token")}`,
       },
       signal: AbortSignal.timeout(8000),
     });
@@ -153,16 +155,16 @@ export default function MitigationModal({
     if (blockStatus !== "idle") return;
     setBlockStatus("loading");
     try {
-      const result = await callMitigateAPI("/api/mitigate/block", {
-        alert_id: alert.id,
-        source:   alert.source,
-        type:     alert.type,
+      const result = await callMitigateAPI(alert.id, {
+        action: "Block Suspicious IPs" // 3. Pass the specific action text to Python
       });
       setBlockStatus("success");
       setBlockResult(result.message);
       toast.success("IPs Blocked", {
         description: result.message + (result.detail ? ` · ${result.detail}` : ""),
       });
+
+      setTimeout(onClose, 2000);
     } catch (err: any) {
       setBlockStatus("error");
       setBlockResult(err.message);
@@ -174,11 +176,8 @@ export default function MitigationModal({
     if (throttleStatus !== "idle") return;
     setThrottleStatus("loading");
     try {
-      const result = await callMitigateAPI("/api/mitigate/throttle", {
-        alert_id:       alert.id,
-        source:         alert.source,
-        type:           alert.type,
-        rate_limit_mbps: 10,
+      const result = await callMitigateAPI(alert.id, {
+        action: "Throttle Inbound Traffic" // 3. Pass the specific action text to Python
       });
       setThrottleStatus("success");
       setThrottleResult(result.message);
