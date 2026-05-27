@@ -6,7 +6,6 @@ interface StatusIndicatorsProps {
 }
 
 export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
-  // 1. Set up a secure default state so the UI doesn't crash while loading
   const [statusData, setStatusData] = useState({
     uptime: 99.98,
     components: [] as any[],
@@ -14,25 +13,40 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
     network: [] as any[]
   });
 
-  // 2. Fetch the live hybrid data from Python
   useEffect(() => {
     const fetchStatus = () => {
-      fetch('https://networkadmin.onrender.com/api/system-status')
-        .then((res) => res.json())
+      const token = localStorage.getItem('masipag_token');
+
+      fetch('https://networkadmin.onrender.com/api/system-status', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+        .then((res) => {
+          if (res.status === 401) {
+            console.error("Token expired or missing in StatusIndicators");
+            return null;
+          }
+          return res.json();
+        })
         .then((data) => {
-          setStatusData(data);
+          if (!data || data.msg) return; 
+          setStatusData({
+            uptime: data.uptime || 99.98,
+            components: data.components || [],
+            metrics: data.metrics || [],
+            network: data.network || []
+          });
         })
         .catch((err) => console.error("Database Connection Failed:", err));
     };
 
     fetchStatus();
     
-    // Refresh the hardware monitors every 5 seconds
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Helper function to map text from the database to React Icons
   const getIconForComponent = (name: string) => {
     switch (name) {
       case 'Web Server': return Server;

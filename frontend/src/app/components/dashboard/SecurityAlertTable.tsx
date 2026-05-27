@@ -27,9 +27,27 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
   // Fetch data from local Flask API
   useEffect(() => {
     const fetchThreats = () => {
-      fetch('https://networkadmin.onrender.com/api/threats')
-        .then((res) => res.json())
+      // 1. Grab the VIP wristband
+      const token = localStorage.getItem('masipag_token');
+
+      // 2. Attach it to the Headers
+      fetch('https://networkadmin.onrender.com/api/threats', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+        .then((res) => {
+          // 3. The 401 Safety Net
+          if (res.status === 401) {
+            console.error("Token expired or missing in SecurityAlertTable");
+            return null; 
+          }
+          return res.json();
+        })
         .then((data) => {
+          // 4. Safety check for valid array
+          if (!data || !Array.isArray(data)) return;
+
           const liveData = data.map((item: any) => ({
             id: item.id,
             time: new Date(item.timestamp).toLocaleTimeString(), 

@@ -26,10 +26,28 @@ export default function SystemLogs({ darkMode }: SystemLogsProps) {
   // 2. Fetch the live data from Python
   useEffect(() => {
     const fetchLogs = () => {
-      fetch('https://networkadmin.onrender.com/api/logs')
-        .then((res) => res.json())
+      // 1. Grab the VIP wristband from the browser's memory
+      const token = localStorage.getItem('masipag_token');
+
+      // 2. Attach it to the Headers
+      fetch('https://networkadmin.onrender.com/api/logs', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+        .then((res) => {
+          // 3. Catch the 401 before it causes the Black Screen of Death
+          if (res.status === 401) {
+            console.error("Token expired or missing in SystemLogs");
+            return null; // Stop processing safely
+          }
+          return res.json();
+        })
         .then((data) => {
-          // 3. Translate Python's database format into React's UI format
+          // 4. Safety check: ensure we actually got an array back from Python
+          if (!data || !Array.isArray(data)) return;
+
+          // 5. Translate Python's database format into React's UI format
           const liveData = data.map((item: any) => ({
             id: item.id,
             timestamp: new Date(item.timestamp).toLocaleString(),

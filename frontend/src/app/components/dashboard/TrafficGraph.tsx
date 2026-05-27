@@ -18,11 +18,26 @@ export default function TrafficGraph({ darkMode }: TrafficGraphProps) {
 
   useEffect(() => {
     const fetchTraffic = () => {
-      fetch('https://networkadmin.onrender.com/api/traffic')
-        .then((res) => res.json())
+      // 1. Grab the VIP wristband from the browser's memory
+      const token = localStorage.getItem('masipag_token');
+
+      // 2. Attach it to the Headers
+      fetch('https://networkadmin.onrender.com/api/traffic', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+        .then((res) => {
+          // 3. SAFETY NET: Catch the 401 before it breaks React
+          if (res.status === 401) {
+            console.error("Token expired or missing in TrafficGraph");
+            return null; // Stop processing so React doesn't crash
+          }
+          return res.json();
+        })
         .then((dbData) => {
-          // Safety check: ensure we actually got an array back from Python
-          if (!Array.isArray(dbData)) return;
+          // 4. If we got blocked (null) or Python sent an error instead of an array, stop here.
+          if (!dbData || !Array.isArray(dbData)) return;
 
           const liveData = dbData.map((item: any) => ({
             time: new Date(item.timestamp).toLocaleTimeString(),
