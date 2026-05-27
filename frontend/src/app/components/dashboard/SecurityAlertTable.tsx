@@ -48,7 +48,8 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
         })
         .then((data) => {
           if (!data || !Array.isArray(data)) return;
-          const liveData = data.map((item: any) => ({
+          const activeThreats = data.filter((item: any) => item.status !== 'mitigated');
+          const liveData = activeThreats.map((item: any) => ({
             id: item.id || Math.random(),
             time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : 'Unknown Time',
             severity: item.severity ? item.severity.toLowerCase() : 'medium', 

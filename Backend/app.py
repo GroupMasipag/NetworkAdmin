@@ -12,7 +12,7 @@ from flask_limiter.util import get_remote_address
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# 1. SETUP & DATABASE LINK
+# 1. INITIAL SETUP
 load_dotenv() 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {
@@ -45,7 +45,7 @@ def network_scanner():
     last_io = psutil.net_io_counters()
 
     while True:
-        # Wait 2 seconds (Matches your React UI TrafficGraph refresh rate!)
+        # Wait 2 seconds
         time.sleep(2)  
         
         # Take a new snapshot
@@ -90,8 +90,9 @@ def network_scanner():
 # 3. START THE SCANNER THREAD
 threading.Thread(target=network_scanner, daemon=True).start()
 
-# API ROUTES 
-
+# 4. API ROUTES
+# The login route is the critical point where we will implement the detection of unauthorized access attempts, 
+# log them as real threats in the database, and also log them in the system logs for comprehensive monitoring. We will also implement rate limiting to prevent brute-force attacks.
 @app.route('/api/login', methods=['POST'])
 @limiter.limit("5 per minute")
 def login():
@@ -151,17 +152,23 @@ def login():
     # Return the generic error to the attacker
     return jsonify({"error": "Invalid username or password"}), 401
 
+# This route allows the frontend to fetch the most recent threats to display in the Threats Table on the dashboard - 
+# it pulls real data from the database so that when you test the login route with incorrect credentials, you will see those attempts show up here as real threats that you can then mitigate!
 @app.route('/api/threats', methods=['GET'])
 @jwt_required()
-def get_threat_logs():
+def get_threats():
     conn = get_db_connection()
     if conn:
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute("SELECT * FROM threats ORDER BY timestamp DESC LIMIT 20")
-        threats = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return jsonify(threats)
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("SELECT * FROM threats WHERE status != 'mitigated' ORDER BY timestamp DESC LIMIT 50")
+            threats = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return jsonify(threats)
+        except Exception as e:
+            print(f"Threat Fetch Error: {e}")
+            return jsonify({"error": "Failed to fetch threats"}), 500
     return jsonify({"error": "Database connection failed"}), 500
 
 # This is the critical route that allows admins to mitigate threats directly from the dashboard - 
@@ -219,13 +226,60 @@ def mitigate_threat(threat_id):
 
     return jsonify({"error": "Database connection failed"}), 500
 
+# This route allows the frontend to fetch live system logs related to a specific threat when an admin clicks on the "View Logs" button for that threat - it identifies the IP of the threat, pulls relevant logs from the database that mention that IP, and formats them specifically for the React Terminal UI to display in a real-time log viewer modal. This provides admins with critical context about what is happening with that threat in real time, directly from the dashboard.
+@app.route('/api/logs/live', methods=['GET'])
+@jwt_required()
+def get_live_logs():
+    alert_id = request.args.get('alert_id')
+    conn = get_db_connection()
+    
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # 1. Find the IP of the attacker to get their specific logs
+            cursor.execute("SELECT ip FROM threats WHERE id = %s", (alert_id,))
+            threat = cursor.fetchone()
+            
+            if threat:
+                threat_ip = threat['ip']
+                # Get system logs involving this specific IP
+                cursor.execute(
+                    "SELECT timestamp, level, message FROM system_logs WHERE message LIKE %s ORDER BY timestamp DESC LIMIT 8", 
+                    (f"%{threat_ip}%",)
+                )
+            else:
+                # Fallback if specific IP logs aren't found
+                cursor.execute("SELECT timestamp, level, message FROM system_logs ORDER BY timestamp DESC LIMIT 8")
+                
+            raw_logs = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            # 2. Format specifically for the React Terminal UI
+            formatted_logs = []
+            for row in reversed(raw_logs): # Reverse so the newest log is at the bottom of the terminal!
+                formatted_logs.append({
+                    "ts": row['timestamp'].strftime("%H:%M:%S"),
+                    "level": row['level'].upper() if row['level'] else "INFO",
+                    "msg": row['message']
+                })
+            
+            return jsonify({"logs": formatted_logs})
+        except Exception as e:
+            print(f"Live Log Error: {e}")
+            return jsonify({"error": "Failed to fetch live logs"}), 500
+            
+    return jsonify({"error": "Database connection failed"}), 500
+
+# This route allows admins to view the User Audit Trail, which logs all significant actions taken by users (especially admins) in the system, 
+# along with their IP addresses and timestamps. This is a critical component for accountability and monitoring of admin activities.
 @app.route('/api/audit-trail', methods=['GET'])
 @jwt_required()
 def get_audit_trail():
     conn = get_db_connection()
     if conn:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        # Fetch the 50 most recent user actions
         cursor.execute("SELECT username, user_ip, action, timestamp FROM app_usage ORDER BY timestamp DESC LIMIT 50")
         audit_logs = cursor.fetchall()
         cursor.close()
@@ -233,6 +287,8 @@ def get_audit_trail():
         return jsonify(audit_logs)
     return jsonify({"error": "Database connection failed"}), 500
 
+# This route allows admins to log out securely - it identifies the user based on their JWT token, 
+# logs the logout action in the User Audit Trail, and can also be used to trigger any necessary cleanup on the frontend (like clearing tokens from local storage)
 @app.route('/api/logout', methods=['POST'])
 @jwt_required()
 def logout():
@@ -260,6 +316,7 @@ def logout():
 
     return jsonify({"error": "Database connection failed"}), 500
 
+# This route allows the frontend to fetch the most recent system logs to display in the System Logs section of the dashboard -
 @app.route('/api/logs', methods=['GET'])
 @jwt_required()
 def get_system_logs():
@@ -274,6 +331,7 @@ def get_system_logs():
         return jsonify(logs)
     return jsonify({"error": "Database connection failed"}), 500
 
+# This route allows the frontend to fetch the most recent camera events to display in the Physical Security section of the dashboard -
 @app.route('/api/camera-events', methods=['GET'])
 @jwt_required()
 def get_camera_events():
@@ -288,6 +346,7 @@ def get_camera_events():
         return jsonify(events)
     return jsonify({"error": "Database connection failed"}), 500
 
+# This route allows the frontend to fetch the most recent network traffic data to display in the Traffic Graph on the dashboard - it pulls real data from the database that is being updated by the hardware network monitor thread, so you will see the graph come alive with real traffic patterns based on your server's activity!
 @app.route('/api/traffic', methods=['GET'])
 @jwt_required()
 def get_traffic():
@@ -302,7 +361,7 @@ def get_traffic():
         return jsonify(data)
     return jsonify({"error": "Database connection failed"}), 500
 
-#REPLACED MOCK DATA
+# This route allows the frontend to fetch the overall system status data to display in the System Status section of the dashboard - it combines real data from the database (like the number of active threats and recent failed login attempts) with real hardware metrics from psutil (like CPU and RAM load) to provide a comprehensive and realistic snapshot of the system's health and security status.
 @app.route('/api/system-status', methods=['GET'])
 @jwt_required()
 def get_system_status():
@@ -360,6 +419,7 @@ def get_system_status():
     }
     return jsonify(status_data)
 
+# This route compiles the various pieces of data needed for the dashboard summary section, which provides a quick snapshot of the system's current status - it pulls real traffic data from the database, counts active threats, fetches recent logs and alerts, and also includes real hardware metrics like CPU load and active connections to give admins a comprehensive overview at a glance.
 @app.route('/api/dashboard-summary', methods=['GET'])
 @jwt_required()
 def get_dashboard_summary():
@@ -417,7 +477,7 @@ def get_dashboard_summary():
 
     return jsonify({"error": "Database connection failed"}), 500
 
-#blocking api route -- jwt
+# This route allows admins to execute a block command against a specific IP address directly from the dashboard - it logs the action in the System Logs with the specific IP and action taken, and also logs it in the User Audit Trail for accountability, including which admin took the action based on their JWT token and IP address. The actual blocking of the IP would be handled by your firewall or network infrastructure, but this route simulates that action and provides the necessary logging for a real mitigation system.
 @app.route('/api/block', methods=['POST'])
 @jwt_required() 
 @limiter.limit("5 per minute") 
@@ -432,7 +492,7 @@ def execute_block_command():
     print(f"🚨 [DEFENSE SYSTEM ACTIVATED] User {current_user} blocking IP: {target_ip}")
     return jsonify({"status": "success", "target": target_ip}), 200
 
-# DASHBOARD ROUTE 
+# This is the main route that serves the dashboard page - it also logs every visit to the dashboard in the app_usage table with the visitor's IP address, which can be useful for monitoring access patterns and identifying potential unauthorized access attempts. In a real application, you might want to restrict this route to authenticated users only, but for demonstration purposes, we will allow anyone to access it and log their visits.
 @app.route('/')
 def home():
     conn = get_db_connection()
