@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Shield, AlertTriangle, Users, Server, Globe, Camera, LogOut } from 'lucide-react';
+import UserAuditTrail from './UserAuditTrail';
 
 interface MainDashboardLayoutProps {
   darkMode: boolean;
@@ -168,7 +169,6 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
         {/* RIGHT COLUMN: Camera & Alerts */}
         <div className="space-y-6">
           
-          {/* THE RESTORED MINI-CAMERA */}
           <div className={`p-6 rounded-xl border ${darkMode ? 'bg-[#1a2942] border-blue-900/30' : 'bg-white border-gray-200'}`}>
             <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Live Camera Feed
@@ -241,6 +241,9 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
                 <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No active alerts at this time.</p>
               )}
             </div>
+            <div className="mt-6">
+            <UserAuditTrail darkMode={darkMode} />
+          </div>
           </div>
         </div>
       </div>
