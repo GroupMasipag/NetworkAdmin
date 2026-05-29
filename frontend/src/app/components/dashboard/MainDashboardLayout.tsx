@@ -174,17 +174,32 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
               Live Camera Feed
             </h3>
             <div className={`relative aspect-video rounded-lg overflow-hidden ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-900'}`}>
-              <div className="absolute inset-0 flex items-center justify-center">
+              {localStorage.getItem('masipag_token') ? (
+                <img 
+                  src={`https://networkadmin.onrender.com/api/camera/stream?token=${localStorage.getItem('masipag_token')}`}
+                  alt="Mini CCTV Feed"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    document.getElementById('mini-cam-error')?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+
+              {/* Fallback if the camera is unplugged or the network drops */}
+              <div id="mini-cam-error" className="hidden absolute inset-0 flex flex-col items-center justify-center">
                 <div className="text-center">
                   <Camera className={`w-12 h-12 mx-auto mb-2 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
                   <p className="text-gray-500 text-sm">CAM-01: Main Entrance</p>
-                  <div className="mt-2 flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    <span className="text-red-500 text-xs font-bold tracking-wider">LIVE</span>
-                  </div>
+                  <p className="text-red-500 text-xs mt-1 font-bold">STREAM OFFLINE</p>
                 </div>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-black/50 px-3 py-1 rounded-full">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-red-500 text-xs font-bold tracking-wider">LIVE</span>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50 pointer-events-none" />
             </div>
           </div>
 

@@ -1,4 +1,5 @@
 import os
+import cv2
 import threading
 import time
 import psycopg2
@@ -44,6 +45,9 @@ def network_scanner():
     # Take an initial snapshot of the network card
     last_io = psutil.net_io_counters()
 
+    DDOS_THRESHOLD_PPS = 800  # Packets per second limit
+    last_ddos_alert_time = 0  # Tracks the 60-second cooldown
+
     while True:
         # Wait 2 seconds
         time.sleep(2)  
@@ -75,12 +79,35 @@ def network_scanner():
                 cursor.execute("SELECT COUNT(*) FROM threats WHERE status = 'active'")
                 active_threats = cursor.fetchone()[0]
 
-                # Insert the REAL hardware data into the database
+                # real data to log into the database for the traffic graph and system status
                 cursor.execute(
                     """INSERT INTO network_traffic (requests_per_sec, active_threats, bandwidth_mbps, packets) 
                        VALUES (%s, %s, %s, %s)""",
                     (int(packets_per_sec), active_threats, round(bandwidth_mbps, 2), int(packets_per_sec))
                 )
+
+                # Threshold detector for DDoS attempts
+                if packets_per_sec > DDOS_THRESHOLD_PPS:
+                    current_time = time.time()
+                    
+                    # Only trigger if the 60-second cooldown has passed
+                    if current_time - last_ddos_alert_time > 60:
+                        
+                        # Log to the Security Alerts Table
+                        cursor.execute(
+                            "INSERT INTO threats (ip, attack_type, severity, description) VALUES (%s, %s, %s, %s)",
+                            ('Multiple IPs (Volumetric)', 'DDoS Attempt', 'High', f'Traffic spike detected: {int(packets_per_sec)} pps (Threshold: {DDOS_THRESHOLD_PPS})')
+                        )
+                        
+                        # Log to the System Logs
+                        cursor.execute(
+                            "INSERT INTO system_logs (level, category, message, source) VALUES (%s, %s, %s, %s)",
+                            ('CRITICAL', 'Network', f'DDoS traffic spike detected — {int(packets_per_sec)} req/s (threshold: {DDOS_THRESHOLD_PPS})', 'Traffic Monitor')
+                        )
+                        
+                        print(f"🚨 [DDOS ALERT] Volumetric threshold exceeded: {int(packets_per_sec)} pps!")
+                        last_ddos_alert_time = current_time # Reset the cooldown timer
+            
                 conn.commit()
                 cursor.close()
                 conn.close()
@@ -90,7 +117,67 @@ def network_scanner():
 # 3. START THE SCANNER THREAD
 threading.Thread(target=network_scanner, daemon=True).start()
 
+def generate_camera_frames():
+    # THIS WILL BE CHANGED DURING PHSYICAL LIVE DEMO
+    # SETUP FOR THE PC ( LOCAL OR WEB ) ->  ROUTER -> SWITCH -> CCTV CAMERA
+    # Option A: If using an IP Camera via your Cisco Router/Switch network topology:
+    # THIS IS THE TYPICAL URL FORMAT FOR CAMERA: "rtsp://admin:password@CAMERA_IP_ADDRESS:554/stream1"
+    # camera_source = "rtsp://admin:password@192.168.1.100:554/stream1"
+    
+    # Option B: If testing locally with a USB webcam / Capture card interface:
+    # just turn into a comment if needed is the IP camera ( for local development )
+
+    # rtsp://<CAMERA_IP>:554/live/ch00_1 or rtsp://<CAMERA_IP>/live/ch00_0. 
+    # enable ONVIF or RTSP inside the V380 Pro mobile app
+    camera_source = 0 
+    
+    camera = cv2.VideoCapture(camera_source)
+    
+    # Set resolution limits to prevent overloading your Render server bandwidth
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    if not camera.isOpened():
+        print("❌ [CAMERA ERROR] Could not connect to physical CCTV source.")
+        return
+
+    print("🔌 [CAMERA] Successfully established connection to physical CCTV source.")
+
+    while True:
+        success, frame = camera.read()
+        if not success:
+            # If a frame fails, inject a slight delay and retry connection
+            cv2.waitKey(30)
+            continue
+        else:
+            # OPTIONAL: Add a professional "LIVE" timestamp overlay onto the video stream
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cv2.putText(frame, f"CCTV LIVE - {timestamp}", (10, 30), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
+            # Encode the frame into standard JPEG format
+            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.imwrite_jpeg_quality), 75])
+            if not ret:
+                continue
+                
+            frame_bytes = buffer.tobytes()
+            
+            # Use multipart boundary packaging to stream frame-by-frame continuously
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+    camera.release()
+
 # 4. API ROUTES
+
+# This route serves the live video stream to the frontend 
+# it uses the generator function to continuously capture frames from the physical CCTV camera and stream them in real time to the React dashboard, 
+# where they will be displayed in the Physical Security section. The use of multipart/x-mixed-replace allows for efficient streaming of JPEG frames without needing to reload the entire page, providing a smooth live video experience for admins monitoring the feed.
+@app.route('/api/camera/stream')
+def video_feed():
+    return Response(generate_camera_frames(), 
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 # The login route is the critical point where we will implement the detection of unauthorized access attempts, 
 # log them as real threats in the database, and also log them in the system logs for comprehensive monitoring. We will also implement rate limiting to prevent brute-force attacks.
 @app.route('/api/login', methods=['POST'])

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Maximize2, Volume2, VolumeX, Video, VideoOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Maximize2, Volume2, VolumeX, Video, VideoOff, Camera } from 'lucide-react';
 
 interface LiveCameraProps {
   darkMode: boolean;
@@ -8,46 +8,31 @@ interface LiveCameraProps {
 export default function LiveCamera({ darkMode }: LiveCameraProps) {
   const [isMuted, setIsMuted] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
-  
-  // 1. Create a blank state to hold the live database camera events
   const [events, setEvents] = useState<any[]>([]);
 
-  // 2. Create a reference to attach the video stream to
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const token = localStorage.getItem('masipag_token');
+  const streamUrl = token ? `https://networkadmin.onrender.com/api/camera/stream?token=${token}` : '';
 
-  // 3. The Webcam Activation Hook
-  useEffect(() => {
-    let currentStream: MediaStream | null = null;
-
-    const startCamera = async () => {
-      try {
-        // Ask the browser for webcam access
-        currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = currentStream;
-        }
-      } catch (err) {
-        console.error("Camera access denied or unavailable:", err);
-      }
-    };
-
-    startCamera();
-
-    // Cleanup function: Turn off the webcam light when leaving the page
-    return () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  // 4. The Link: Fetch the data from your live Python Bouncer on Render
   useEffect(() => {
     const fetchCameraEvents = () => {
-      fetch('https://networkadmin.onrender.com/api/camera-events')
-        .then((res) => res.json())
+      if (!token) return;
+
+      // Secured fetch with JWT Header and 401 
+      fetch('https://networkadmin.onrender.com/api/camera-events', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+        .then((res) => {
+          if (res.status === 401) {
+            console.error("Token expired in LiveCamera");
+            return null;
+          }
+          return res.json();
+        })
         .then((data) => {
-          // Translate Python's database columns into React's UI format
+          if (!data || !Array.isArray(data)) return;
+
           const liveData = data.map((item: any) => ({
             time: new Date(item.timestamp).toLocaleTimeString(),
             camera: item.camera_id,
@@ -61,11 +46,9 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
     };
 
     fetchCameraEvents();
-    
-    // Refresh the camera events every 15 seconds
     const interval = setInterval(fetchCameraEvents, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   const camera = {
     name: 'CAM-01 - Main Entrance',
@@ -83,22 +66,31 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
         <div className="max-w-4xl mx-auto">
           <div className={`relative aspect-video rounded-lg overflow-hidden ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-900'}`}>
             
-            {/* The Live Webcam Stream */}
-            <video 
-              ref={videoRef}
-              autoPlay 
-              playsInline 
-              muted 
-              className="absolute inset-0 w-full h-full object-cover"
-            />
             
-            {/* Keeping the LIVE pulse badge in the top right corner for aesthetics */}
+            {streamUrl ? (
+              <img 
+                src={streamUrl}
+                alt="Live Network Camera Stream"
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  document.getElementById('main-cam-error')?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+
+            {/* Offline Fallback */}
+            <div id="main-cam-error" className="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-0">
+              <Camera className="w-16 h-16 text-gray-600 mb-4" />
+              <p className="text-red-500 font-bold tracking-widest text-lg">CONNECTION LOST</p>
+              <p className="text-gray-400 mt-2 text-sm">Waiting for RTSP stream from network switch...</p>
+            </div>
+            
             <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-black/50 px-3 py-1 rounded-full">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               <span className="text-red-500 text-xs font-bold tracking-wider">LIVE</span>
             </div>
 
-            {/* Gradient overlay for text readability */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 pointer-events-none" />
 
             <div className="absolute top-4 left-4 flex items-start justify-between z-10">
@@ -154,33 +146,34 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
           Recent Events
         </h3>
         <div className="space-y-3">
-          {events.map((event, index) => (
-            <div
-              key={index}
-              className={`p-3 rounded-lg border ${darkMode ? 'bg-[#0f1f35] border-blue-900/30' : 'bg-gray-50 border-gray-200'}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
-                  event.severity === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-                }`} />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {event.time}
+          {events.length === 0 ? (
+            <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No camera events recorded.</p>
+          ) : (
+            events.map((event, index) => (
+              <div key={index} className={`p-3 rounded-lg border ${darkMode ? 'bg-[#0f1f35] border-blue-900/30' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
+                    event.severity === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+                  }`} />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {event.time}
+                      </p>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {event.camera}
+                      </span>
+                    </div>
+                    <p className={`text-sm mt-1 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                      {event.event}
                     </p>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {event.camera}
-                    </span>
                   </div>
-                  <p className={`text-sm mt-1 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                    {event.event}
-                  </p>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
