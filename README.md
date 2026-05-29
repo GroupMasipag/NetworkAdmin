@@ -1,6 +1,6 @@
 # MASIPAG Network Administration & Security Dashboard
 
-**Live Cloud Deployment:** [https://networkadministrationgroup6.onrender.com](https://networkadmin.onrender.com)
+**Live Cloud Deployment:** [link to the frontend](https://networkadministrationgroup6.onrender.com)
 
 ## Overview
 The MASIPAG System is an Network Administration Dashboard designed to monitor physical hardware, live CCTV, and actively defend against network intrusions. Built with a React frontend and a Python/Flask backend, the system utilizes real-time hardware monitoring and a PostgreSQL database to manage and record security events.
