@@ -117,11 +117,12 @@ def network_scanner():
 # 3. START THE SCANNER THREAD
 threading.Thread(target=network_scanner, daemon=True).start()
 
-def generate_camera_frames():
+def generate_camera_frames():
+    cctv_password = " "
     # SETUP FOR THE PC ( LOCAL OR WEB ) ->  ROUTER -> SWITCH -> CCTV CAMERA
     # Option A: If using an IP Camera via your Cisco Router/Switch network topology:
     # THIS IS THE TYPICAL URL FORMAT FOR CAMERA: "rtsp://admin:password@CAMERA_IP_ADDRESS:554/stream1"
-    camera_source = "rtsp://Admin:@136.158.79.10:554/live/ch00_1"
+    camera_source = f"rtsp://Admin:{cctv_password}@136.158.79.10:554/live/ch00_1"
     
     # Option B: If testing locally with a USB webcam / Capture card interface:
     # just turn into a comment if needed is the IP camera ( for local development )
