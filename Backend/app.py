@@ -122,7 +122,7 @@ def generate_camera_frames():
     # SETUP FOR THE PC ( LOCAL OR WEB ) ->  ROUTER -> SWITCH -> CCTV CAMERA
     # Option A: If using an IP Camera via your Cisco Router/Switch network topology:
     # THIS IS THE TYPICAL URL FORMAT FOR CAMERA: "rtsp://admin:password@CAMERA_IP_ADDRESS:554/stream1"
-    camera_source = "rtsp://admin:@192.168.1.250:554/live/ch00_1"
+    camera_source = "rtsp://admin@192.168.1.250:554/live/ch00_1"
     
     # Option B: If testing locally with a USB webcam / Capture card interface:
     # just turn into a comment if needed is the IP camera ( for local development )
