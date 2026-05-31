@@ -32,26 +32,6 @@ Because this system interfaces with raw network sockets and hardware architectur
 
 **Detailed Setup Guide:** Please refer to [`docs/SetupLinuxWSL.md`](./docs/SetupLinuxWSL.md) for complete instructions on configuring the Ubuntu virtual environment and database connections.
 
-### Quick Start
-**1. Backend (Flask)**
-```bash
-# Activate the virtual environment
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the backend server
-python3 app.py
-
-**2. Frontend (React)**
-```bash
-# Install Node dependencies
-npm install
-
-# Start the Vite development server
-npm run dev
-
 ### API ROUTES 
 *the api routes are protected with several endpoints requiring JWT Bearer tokens:*
 POST /api/login - Authenticates user and returns JWT.
@@ -85,4 +65,23 @@ GET / - Serves the main dashboard UI and passively logs visitor IPs.
 ### Attributions
 please check out the [`docs/ATTRIBUTIONS.md`](./docs/ATTRIBUTIONS.md) for assets liscensing and open-source components
 
+### Quick Start
+**1. Backend (Flask)**
+```bash
+# Activate the virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the backend server
+python3 app.py
+
+**2. Frontend (React)**
+```bash
+# Install Node dependencies
+npm install
+
+# Start the Vite development server
+npm run dev
 
