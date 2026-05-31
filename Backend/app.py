@@ -1,11 +1,12 @@
 import os
 import cv2
 import threading
+import datetime
 import time
 import psycopg2
 import psycopg2.extras
 import psutil
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, Response
 from dotenv import load_dotenv
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -20,6 +21,7 @@ CORS(app, resources={r"/api/*": {
     "origins": [
         "http://localhost:5173", # Local development URL for React frontend
         "https://networkadministrationgroup6.onrender.com" # Production URL for React frontend
+        "https://acoustic-closing-thunder-widespread.trycloudflare.com"
     ]}}) # Allows frontend to talk to backend
 
 limiter = Limiter(
@@ -117,23 +119,14 @@ def network_scanner():
 # 3. START THE SCANNER THREAD
 threading.Thread(target=network_scanner, daemon=True).start()
 
-def generate_camera_frames():
-    cctv_password = " "
-    # SETUP FOR THE PC ( LOCAL OR WEB ) ->  ROUTER -> SWITCH -> CCTV CAMERA
-    # Option A: If using an IP Camera via your Cisco Router/Switch network topology:
-    # THIS IS THE TYPICAL URL FORMAT FOR CAMERA: "rtsp://admin:password@CAMERA_IP_ADDRESS:554/stream1"
-    camera_source = f"rtsp://admin:{cctv_password}@192.168.1.55:554/live/ch00_1"
-    
-    # Option B: If testing locally with a USB webcam / Capture card interface:
-    # just turn into a comment if needed is the IP camera ( for local development )
 
-    # rtsp://<CAMERA_IP>:554/live/ch00_1 or rtsp://<CAMERA_IP>/live/ch00_0. 
-    # enable ONVIF or RTSP inside the V380 Pro mobile app
-    # camera_source = 0 
+def generate_camera_frames():
+    # MODIFIED: Configured with your explicit camera RTSP source destination
+    camera_source = "rtsp://192.168.1.55:554/live/ch00_1"
     
-    camera = cv2.VideoCapture(camera_source)
+    camera = cv2.VideoCapture(camera_source, cv2.CAP_FFMPEG)
     
-    # Set resolution limits to prevent overloading your Render server bandwidth
+    # Set resolution limits to prevent overloading server bandwidth
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
@@ -150,13 +143,13 @@ def generate_camera_frames():
             cv2.waitKey(30)
             continue
         else:
-            # OPTIONAL: Add a professional "LIVE" timestamp overlay onto the video stream
+            # Add a professional "LIVE" timestamp overlay onto the video stream
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             cv2.putText(frame, f"CCTV LIVE - {timestamp}", (10, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-            # Encode the frame into standard JPEG format
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.imwrite_jpeg_quality), 75])
+            # MODIFIED: Fixed encoding quality attribute from lowercase typo to uppercase IMWRITE_JPEG_QUALITY
+            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
             if not ret:
                 continue
                 
@@ -170,16 +163,11 @@ def generate_camera_frames():
 
 # 4. API ROUTES
 
-# This route serves the live video stream to the frontend 
-# it uses the generator function to continuously capture frames from the physical CCTV camera and stream them in real time to the React dashboard, 
-# where they will be displayed in the Physical Security section. The use of multipart/x-mixed-replace allows for efficient streaming of JPEG frames without needing to reload the entire page, providing a smooth live video experience for admins monitoring the feed.
 @app.route('/api/camera/stream')
 def video_feed():
     return Response(generate_camera_frames(), 
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# The login route is the critical point where we will implement the detection of unauthorized access attempts, 
-# log them as real threats in the database, and also log them in the system logs for comprehensive monitoring. We will also implement rate limiting to prevent brute-force attacks.
 @app.route('/api/login', methods=['POST'])
 @limiter.limit("5 per minute")
 def login():
@@ -236,11 +224,8 @@ def login():
         conn.close()
         print(f"🚨 [SECURITY] Failed login logged as threat from IP: {attacker_ip}")
 
-    # Return the generic error to the attacker
     return jsonify({"error": "Invalid username or password"}), 401
 
-# This route allows the frontend to fetch the most recent threats to display in the Threats Table on the dashboard - 
-# it pulls real data from the database so that when you test the login route with incorrect credentials, you will see those attempts show up here as real threats that you can then mitigate!
 @app.route('/api/threats', methods=['GET'])
 @jwt_required()
 def get_threats():
@@ -258,16 +243,12 @@ def get_threats():
             return jsonify({"error": "Failed to fetch threats"}), 500
     return jsonify({"error": "Database connection failed"}), 500
 
-# This is the critical route that allows admins to mitigate threats directly from the dashboard - 
-# it updates the threat status, logs the action in both the System Logs and the User Audit Trail, and identifies which admin took the action based on their JWT token and IP address
 @app.route('/api/threats/<int:threat_id>/mitigate', methods=['POST'])
 @jwt_required()
 def mitigate_threat(threat_id):
-    # Identify which admin is pushing the button
     current_user = get_jwt_identity()
     admin_ip = request.remote_addr
     
-    # Get the specific action the admin chose (e.g., "Block Suspicious IPs")
     data = request.get_json() or {}
     action_taken = data.get('action', 'Applied standard mitigation')
 
@@ -313,7 +294,6 @@ def mitigate_threat(threat_id):
 
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows the frontend to fetch live system logs related to a specific threat when an admin clicks on the "View Logs" button for that threat - it identifies the IP of the threat, pulls relevant logs from the database that mention that IP, and formats them specifically for the React Terminal UI to display in a real-time log viewer modal. This provides admins with critical context about what is happening with that threat in real time, directly from the dashboard.
 @app.route('/api/logs/live', methods=['GET'])
 @jwt_required()
 def get_live_logs():
@@ -359,8 +339,6 @@ def get_live_logs():
             
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows admins to view the User Audit Trail, which logs all significant actions taken by users (especially admins) in the system, 
-# along with their IP addresses and timestamps. This is a critical component for accountability and monitoring of admin activities.
 @app.route('/api/audit-trail', methods=['GET'])
 @jwt_required()
 def get_audit_trail():
@@ -374,16 +352,12 @@ def get_audit_trail():
         return jsonify(audit_logs)
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows admins to log out securely - it identifies the user based on their JWT token, 
-# logs the logout action in the User Audit Trail, and can also be used to trigger any necessary cleanup on the frontend (like clearing tokens from local storage)
 @app.route('/api/logout', methods=['POST'])
 @jwt_required()
 def logout():
-    # 1. Identify who is logging out based on their JWT wristband
     current_user = get_jwt_identity()
     user_ip = request.remote_addr
 
-    # 2. Record the action in the database
     conn = get_db_connection()
     if conn:
         try:
@@ -403,14 +377,12 @@ def logout():
 
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows the frontend to fetch the most recent system logs to display in the System Logs section of the dashboard -
 @app.route('/api/logs', methods=['GET'])
 @jwt_required()
 def get_system_logs():
     conn = get_db_connection()
     if conn:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        # Grab the 50 most recent logs from the new table your DBA is building
         cursor.execute("SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 50")
         logs = cursor.fetchall()
         cursor.close()
@@ -418,14 +390,12 @@ def get_system_logs():
         return jsonify(logs)
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows the frontend to fetch the most recent camera events to display in the Physical Security section of the dashboard -
 @app.route('/api/camera-events', methods=['GET'])
 @jwt_required()
 def get_camera_events():
     conn = get_db_connection()
     if conn:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        # Grab the 10 most recent physical security events
         cursor.execute("SELECT * FROM camera_events ORDER BY timestamp DESC LIMIT 10")
         events = cursor.fetchall()
         cursor.close()
@@ -433,14 +403,12 @@ def get_camera_events():
         return jsonify(events)
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows the frontend to fetch the most recent network traffic data to display in the Traffic Graph on the dashboard - it pulls real data from the database that is being updated by the hardware network monitor thread, so you will see the graph come alive with real traffic patterns based on your server's activity!
 @app.route('/api/traffic', methods=['GET'])
 @jwt_required()
 def get_traffic():
     conn = get_db_connection()
     if conn:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        # Grab the 30 most recent traffic ticks for the chart
         cursor.execute("SELECT * FROM network_traffic ORDER BY timestamp DESC LIMIT 30")
         data = cursor.fetchall()
         cursor.close()
@@ -448,7 +416,6 @@ def get_traffic():
         return jsonify(data)
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows the frontend to fetch the overall system status data to display in the System Status section of the dashboard - it combines real data from the database (like the number of active threats and recent failed login attempts) with real hardware metrics from psutil (like CPU and RAM load) to provide a comprehensive and realistic snapshot of the system's health and security status.
 @app.route('/api/system-status', methods=['GET'])
 @jwt_required()
 def get_system_status():
@@ -460,11 +427,9 @@ def get_system_status():
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            # 1. Get the total number of blocked threats
             cursor.execute("SELECT COUNT(*) as count FROM threats")
             threats_count = cursor.fetchone()['count']
             
-            # 2. Get the specific number of failed login attempts!
             cursor.execute("SELECT COUNT(*) as count FROM threats WHERE attack_type = 'Unauthorized Login Attempt'")
             failed_logins = cursor.fetchone()['count']
             
@@ -473,31 +438,26 @@ def get_system_status():
         except Exception as e:
             print(f"Status DB Error: {e}")
 
-    # 3. Read the REAL physical hardware of your Render server
     cpu_load = psutil.cpu_percent(interval=None)
     ram_load = psutil.virtual_memory().percent
 
-    # 4. Package realistic, stable data for React
     status_data = {
         "uptime": 99.98,
         "components": [
-            # Real Hardware Metrics
             {"name": "Web Server", "status": "online", "load": cpu_load},
             {"name": "Database", "status": "online", "load": ram_load},
-            
-            # Mocked components to fill out the UI and make it look alive - these are not tied to real hardware but add depth to the dashboard
             {"name": "Firewall", "status": "online", "load": 18.5},
             {"name": "Load Balancer", "status": "online", "load": 22.0},
             {"name": "VPN Gateway", "status": "online", "load": 12.0},
             {"name": "Network Switch", "status": "online", "load": 25.5},
         ],
-        "metrics": [ # These are the key performance indicators that show at the top of the dashboard - we will make the Threats Blocked and Failed Logins dynamic based on real data from the database, while the others are static for now to add depth to the UI
+        "metrics": [
             {"label": "Threats Blocked (Total)", "value": str(threats_count), "trend": "Active", "status": "success"},
             {"label": "Active Firewall Rules", "value": "342", "trend": "Stable", "status": "info"},
             {"label": "Failed Login Attempts", "value": str(failed_logins), "trend": "Tracked", "status": "warning" if failed_logins > 0 else "success"},
             {"label": "Malware Detected", "value": "0", "trend": "Clean", "status": "success"},
         ],
-        "network": [ # These are the network components that show in the Network Status section of the dashboard - we will make the latency and uptime dynamic based on real data from your server's performance, while the status is static for now to add depth to the UI
+        "network": [
             {"name": "Primary Gateway", "status": "Operational", "latency": "12ms", "uptime": "99.99%"},
             {"name": "Secondary Gateway", "status": "Operational", "latency": "18ms", "uptime": "99.97%"},
             {"name": "DNS Servers", "status": "Operational", "latency": "8ms", "uptime": "100%"},
@@ -506,7 +466,6 @@ def get_system_status():
     }
     return jsonify(status_data)
 
-# This route compiles the various pieces of data needed for the dashboard summary section, which provides a quick snapshot of the system's current status - it pulls real traffic data from the database, counts active threats, fetches recent logs and alerts, and also includes real hardware metrics like CPU load and active connections to give admins a comprehensive overview at a glance.
 @app.route('/api/dashboard-summary', methods=['GET'])
 @jwt_required()
 def get_dashboard_summary():
@@ -515,34 +474,26 @@ def get_dashboard_summary():
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            # 1. Get the single most recent traffic tick
             cursor.execute("SELECT requests_per_sec FROM network_traffic ORDER BY timestamp DESC LIMIT 1")
             traffic_row = cursor.fetchone()
             current_traffic = traffic_row['requests_per_sec'] if traffic_row else 0
 
-            # 2. Get the total number of blocked threats
             cursor.execute("SELECT COUNT(*) as count FROM threats")
             threats_count = cursor.fetchone()['count']
 
-            # 3. Get the 5 most recent system logs
             cursor.execute("SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 5")
             recent_logs = cursor.fetchall()
 
-            # 4. Get the 2 most recent alerts
             cursor.execute("SELECT * FROM threats ORDER BY timestamp DESC LIMIT 2")
             recent_alerts = cursor.fetchall()
 
             cursor.close()
             conn.close()
-            # 5. Get the current server load (CPU usage) using psutil
             server_load = psutil.cpu_percent(interval=None)
         
-            # 6. Get the current number of active connections (This is a bit tricky without raw socket access, but we can approximate)
             try:
-                # Count actual physical network connections
                 active_conns = len(psutil.net_connections(kind='inet'))
             except (PermissionError, psutil.AccessDenied):
-                # Fallback: strictly tied to traffic volume
                 active_conns = int(current_traffic * 2.5) if current_traffic else 12
         
             summary = {
@@ -564,7 +515,6 @@ def get_dashboard_summary():
 
     return jsonify({"error": "Database connection failed"}), 500
 
-# This route allows admins to execute a block command against a specific IP address directly from the dashboard - it logs the action in the System Logs with the specific IP and action taken, and also logs it in the User Audit Trail for accountability, including which admin took the action based on their JWT token and IP address. The actual blocking of the IP would be handled by your firewall or network infrastructure, but this route simulates that action and provides the necessary logging for a real mitigation system.
 @app.route('/api/block', methods=['POST'])
 @jwt_required() 
 @limiter.limit("5 per minute") 
@@ -579,14 +529,12 @@ def execute_block_command():
     print(f"🚨 [DEFENSE SYSTEM ACTIVATED] User {current_user} blocking IP: {target_ip}")
     return jsonify({"status": "success", "target": target_ip}), 200
 
-# This is the main route that serves the dashboard page - it also logs every visit to the dashboard in the app_usage table with the visitor's IP address, which can be useful for monitoring access patterns and identifying potential unauthorized access attempts. In a real application, you might want to restrict this route to authenticated users only, but for demonstration purposes, we will allow anyone to access it and log their visits.
 @app.route('/')
 def home():
     conn = get_db_connection()
     if conn:
         try:
             cursor = conn.cursor()
-            # Log the visitor's IP 
             cursor.execute(
                 "INSERT INTO app_usage (username, user_ip) VALUES (%s, %s)", 
                 ("Web Visitor", get_remote_address())

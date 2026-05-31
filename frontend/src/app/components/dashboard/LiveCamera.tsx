@@ -11,7 +11,7 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
   const [events, setEvents] = useState<any[]>([]);
 
   const token = localStorage.getItem('masipag_token');
-  const streamUrl = token ? `https://networkadmin.onrender.com/api/camera/stream?token=${token}` : '';
+  const streamUrl = token ? `https://acoustic-closing-thunder-widespread.trycloudflare.com/api/camera/stream?token=${token}` : '';
 
   useEffect(() => {
     const fetchCameraEvents = () => {
