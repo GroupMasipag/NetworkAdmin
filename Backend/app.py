@@ -118,18 +118,18 @@ def network_scanner():
 threading.Thread(target=network_scanner, daemon=True).start()
 
 def generate_camera_frames():
-    # THIS WILL BE CHANGED DURING PHSYICAL LIVE DEMO
+    cctv_password = " "
     # SETUP FOR THE PC ( LOCAL OR WEB ) ->  ROUTER -> SWITCH -> CCTV CAMERA
     # Option A: If using an IP Camera via your Cisco Router/Switch network topology:
     # THIS IS THE TYPICAL URL FORMAT FOR CAMERA: "rtsp://admin:password@CAMERA_IP_ADDRESS:554/stream1"
-    # camera_source = "rtsp://admin:password@192.168.1.100:554/stream1"
+    camera_source = f"rtsp://admin:{cctv_password}@192.168.1.55:554/live/ch00_1"
     
     # Option B: If testing locally with a USB webcam / Capture card interface:
     # just turn into a comment if needed is the IP camera ( for local development )
 
     # rtsp://<CAMERA_IP>:554/live/ch00_1 or rtsp://<CAMERA_IP>/live/ch00_0. 
     # enable ONVIF or RTSP inside the V380 Pro mobile app
-    camera_source = 0 
+    # camera_source = 0 
     
     camera = cv2.VideoCapture(camera_source)
     
