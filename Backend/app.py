@@ -199,7 +199,7 @@ def login():
         if user and check_password_hash(user['password_hash'], password):
             
             # 3. Create the token 
-            access_token = create_access_token(identity={"username": username})
+            access_token = create_access_token(identity=username)
             
             cursor.execute(
                 "INSERT INTO app_usage (username, user_ip, action) VALUES (%s, %s, %s)",
