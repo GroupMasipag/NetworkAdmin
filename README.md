@@ -1,15 +1,16 @@
 # MASIPAG Network Administration & Security Dashboard
 
-**Live Cloud Deployment:** [link to the frontend](https://networkadministrationgroup6.onrender.com)
+**Live Cloud Deployment:** [Link to the frontend](https://networkadministrationgroup6.onrender.com)
 
 ## Overview
-The MASIPAG System is an Network Administration Dashboard designed to monitor physical hardware, live CCTV, and actively defend against network intrusions. Built with a React frontend and a Python/Flask backend, the system utilizes real-time hardware monitoring and a PostgreSQL database to manage and record security events.
+The MASIPAG System is a Network Administration Dashboard designed to monitor physical hardware, live CCTV, and actively defend against network intrusions. Built with a React frontend and a Python/Flask backend, the system utilizes real-time hardware monitoring and a PostgreSQL database to manage and record security events.
 
 ## Core System Features
 
 ### Security & Access Control
-* **JWT Authentication:** Secure login system with encrypted session management.
-* **Brute-Force Protection:** Route-level rate limiting (`Flask-Limiter`) that automatically blocks rapid login attempts and logs them as high-severity threats.
+* **Authentication and Authorization:** Secure login system utilizing strictly configured HttpOnly Secure Cookies, completely immunizing the session state against Cross-Site Scripting (XSS) attacks.
+* **Database Hardening:** Full implementation of parameterized SQL queries (`psycopg2`) to neutralize SQL Injection vulnerabilities.
+* **Brute-Force Protection:** Route-level rate limiting (`Flask-Limiter`) that automatically blocks rapid login attempts and logs them to the database as high-severity threats.
 * **User Audit Trail:** Comprehensive, immutable logging of all user activity (logins, logouts, and mitigation actions) directly to the database.
 
 ### Network Monitoring & Mitigation
@@ -22,7 +23,7 @@ The MASIPAG System is an Network Administration Dashboard designed to monitor ph
 
 ## Tech Stack
 * **Frontend:** React, TypeScript, Vite, Tailwind CSS, Lucide Icons
-* **Backend:** Python, Flask, OpenCV (Video Streaming), psutil (Hardware Metrics)
+* **Backend:** Python, Flask, Flask-JWT-Extended, Flask-Limiter, OpenCV (Video Streaming), psutil (Hardware Metrics)
 * **Database:** PostgreSQL (Cloud-hosted via Render)
 * **Deployment:** Render (Automated CI/CD)
 
@@ -33,39 +34,29 @@ Because this system interfaces with raw network sockets and hardware architectur
 **Detailed Setup Guide:** Please refer to [`docs/SetupLinuxWSL.md`](./docs/SetupLinuxWSL.md) for complete instructions on configuring the Ubuntu virtual environment and database connections.
 
 ### API ROUTES 
-*the api routes are protected with several endpoints requiring JWT Bearer tokens:*
-POST /api/login - Authenticates user and returns JWT.
+*The API routes are protected with several endpoints requiring JWTs transmitted via cross-origin HttpOnly Secure Cookies:*
 
-POST /api/logout - Securely logs out the user and records the event.
-
-GET /api/threats - Fetches active network security alerts.
-
-POST /api/threats/<id>/mitigate - Updates threat status and updates the WAF blocklist.
-
-POST /api/block - Executes a manual block command against a specific IP address.
-
-GET /api/audit-trail - Fetches the immutable user action log.
-
-GET /api/logs - Retrieves the most recent general system logs.
-
-GET /api/logs/live - Fetches real-time system logs filtered by a specific threat IP.
-
-GET /api/traffic - Pulls the most recent network traffic snapshots for the real-time graph.
-
-GET /api/system-status - Provides a system health snapshot using real hardware metrics.
-
-GET /api/dashboard-summary - Compiles high-level overview data for the main dashboard.
-
-GET /api/camera/stream - Yields the multipart MJPEG CCTV stream.
-
-GET /api/camera-events - Retrieves the most recent physical security camera events.
-
-GET / - Serves the main dashboard UI and passively logs visitor IPs.
+* `POST /api/login` - Authenticates user and sets the secure session cookie.
+* `POST /api/logout` - Securely invalidates the session cookie and records the event.
+* `GET /api/threats` - Fetches active network security alerts.
+* `POST /api/threats/<id>/mitigate` - Updates threat status and updates the WAF blocklist.
+* `POST /api/block` - Executes a manual block command against a specific IP address.
+* `GET /api/audit-trail` - Fetches the immutable user action log.
+* `GET /api/logs` - Retrieves the most recent general system logs.
+* `GET /api/logs/live` - Fetches real-time system logs filtered by a specific threat IP.
+* `GET /api/traffic` - Pulls the most recent network traffic snapshots for the real-time graph.
+* `GET /api/system-status` - Provides a system health snapshot using real hardware metrics.
+* `GET /api/dashboard-summary` - Compiles high-level overview data for the main dashboard.
+* `GET /api/camera/stream` - Yields the multipart MJPEG CCTV stream.
+* `GET /api/camera-events` - Retrieves the most recent physical security camera events.
+* `GET /` - Serves the main dashboard UI and passively logs visitor IPs.
 
 ### Attributions
-please check out the [`docs/ATTRIBUTIONS.md`](./docs/ATTRIBUTIONS.md) for assets liscensing and open-source components
+Please check out the [`docs/ATTRIBUTIONS.md`](./docs/ATTRIBUTIONS.md) for assets licensing and open-source components.
 
 ### Quick Start
+
+
 **1. Backend (Flask)**
 ```bash
 # Activate the virtual environment
@@ -77,6 +68,7 @@ pip install -r requirements.txt
 # Run the backend server
 python3 app.py
 
+```
 **2. Frontend (React)**
 ```bash
 # Install Node dependencies
@@ -84,4 +76,3 @@ npm install
 
 # Start the Vite development server
 npm run dev
-
