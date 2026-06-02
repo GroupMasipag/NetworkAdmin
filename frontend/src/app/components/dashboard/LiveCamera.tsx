@@ -11,7 +11,9 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
   const [events, setEvents] = useState<any[]>([]);
 
   const token = localStorage.getItem('masipag_token');
-  const streamUrl = token ? `https://acoustic-closing-thunder-widespread.trycloudflare.com/api/camera/stream?token=${token}` : '';
+  
+  // FIX: Updated to use the exact Cloudflare URL provided
+  const streamUrl = token ? "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool" : "";
 
   useEffect(() => {
     const fetchCameraEvents = () => {
