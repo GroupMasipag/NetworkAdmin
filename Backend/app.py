@@ -21,7 +21,7 @@ CORS(app, resources={r"/api/*": {
     "origins": [
         "http://localhost:5173", # Local development URL for React frontend
         "https://networkadministrationgroup6.onrender.com" # Production URL for React frontend
-        "https://acoustic-closing-thunder-widespread.trycloudflare.com"
+        "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool"
     ]}}) # Allows frontend to talk to backend
 
 limiter = Limiter(
@@ -121,11 +121,12 @@ threading.Thread(target=network_scanner, daemon=True).start()
 
 <<<<<<< HEAD
 =======
-def generate_camera_frames():
+def generate_camera_frames():
+
     # SETUP FOR THE PC ( LOCAL OR WEB ) ->  ROUTER -> SWITCH -> CCTV CAMERA
     # Option A: If using an IP Camera via your Cisco Router/Switch network topology:
     # THIS IS THE TYPICAL URL FORMAT FOR CAMERA: "rtsp://admin:password@CAMERA_IP_ADDRESS:554/stream1"
-    camera_source = "rtsp://136.158.79.10:554/live/ch00_1"
+    camera_source = "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool"
     
     # Option B: If testing locally with a USB webcam / Capture card interface:
     # just turn into a comment if needed is the IP camera ( for local development )
