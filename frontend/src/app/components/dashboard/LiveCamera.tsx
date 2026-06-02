@@ -10,20 +10,16 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
 
-  const token = localStorage.getItem('masipag_token');
   
   // FIX: Updated to use the exact Cloudflare URL provided
-  const streamUrl = token ? "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool" : "";
+  const streamUrl = "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool";
 
   useEffect(() => {
     const fetchCameraEvents = () => {
-      if (!token) return;
 
       // Secured fetch with JWT Header and 401 
       fetch('https://networkadmin.onrender.com/api/camera-events', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
         .then((res) => {
           if (res.status === 401) {
@@ -50,10 +46,10 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
     fetchCameraEvents();
     const interval = setInterval(fetchCameraEvents, 15000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, []);
 
   const camera = {
-    name: 'CAM-01 - Main Entrance',
+    name: 'CAM-01 - Bahay ni Lloyd',
     location: 'Building A - Front',
     status: 'online'
   };

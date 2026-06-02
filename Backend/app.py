@@ -11,8 +11,9 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, set_access_cookies
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # 1. INITIAL SETUP
 load_dotenv() 
@@ -21,7 +22,7 @@ CORS(app, resources={r"/api/*": {
     "origins": [
         "http://localhost:5173", # Local development URL for React frontend
         "https://networkadministrationgroup6.onrender.com", # Production URL for React frontend
-        "https://acoustic-closing-thunder-widespread.trycloudflare.com"
+        "https://acoustic-closing-thunder-widespread.trycloudflare.com" #cloudflare tunnel URL 
     ]}}) # Allows frontend to talk to backend
 
 limiter = Limiter(
@@ -31,7 +32,19 @@ limiter = Limiter(
     default_limits=["200 per minute"]
     ) # Basic rate limiting to prevent abuse; can be adjusted as needed
 
-app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "fallback-secret-key")
+# 1.5 JWT CONFIGURATION
+jwt_secret = os.getenv("JWT_SECRET_KEY")
+if not jwt_secret:
+    raise ValueError("FATAL ERROR: JWT_SECRET_KEY is not set in the environment!")
+app.config["JWT_SECRET_KEY"] = jwt_secret
+
+# Tell Flask-JWT-Extended to use cookies instead of Authorization headers
+app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+
+# Prevent JavaScript from reading the cookie (Stops XSS)
+app.config['JWT_COOKIE_SECURE'] = True  # Ensures the cookie is only sent over HTTPS
+app.config['JWT_COOKIE_CSRF_PROTECT'] = True # Generates a secondary CSRF token
+
 jwt = JWTManager(app)
 #jwt and database url is in the .env file 
 def get_db_connection():
@@ -185,8 +198,8 @@ def login():
         # 2. Check if the user exists AND if the password matches the hash
         if user and check_password_hash(user['password_hash'], password):
             
-            # 3. Create the token
-            access_token = create_access_token(identity=username)
+            # 3. Create the token 
+            access_token = create_access_token(identity={"username": username})
             
             cursor.execute(
                 "INSERT INTO app_usage (username, user_ip, action) VALUES (%s, %s, %s)",
@@ -196,7 +209,14 @@ def login():
             
             cursor.close()
             conn.close()
-            return jsonify({"token": access_token, "message": "Login successful"}), 200
+            
+            # Create the response
+            response = jsonify({"message": "Login successful"})
+            
+            # Bake the access token into the response as a secure HttpOnly cookie
+            set_access_cookies(response, access_token)
+            
+            return response, 200 
             
         cursor.close()
         conn.close()
@@ -369,7 +389,9 @@ def logout():
             cursor.close()
             conn.close()
             print(f"🔒 [SECURITY] User {current_user} logged out successfully.")
-            return jsonify({"message": "Successfully logged out"}), 200
+            response = jsonify({"message": "Successfully logged out"})
+            unset_jwt_cookies(response)
+            return response, 200
         except Exception as e:
             print(f"Logout Error: {e}")
             return jsonify({"error": "Failed to log logout event"}), 500
@@ -553,6 +575,8 @@ if __name__ == '__main__':
         test.close()
     else:
         print("❌ FAILED: Could not link to PostgreSQL. Check .env file.")
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     port = int(os.environ.get("PORT", 5001))
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)

@@ -20,24 +20,19 @@ export default function Dashboard({ onLogout, darkMode, setDarkMode }: Dashboard
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('main');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  // The handleLogoutConfirm function is responsible for securely logging the user out of the MASIPAG System. It first checks if a valid authentication token exists in localStorage. If it does, it attempts to notify the backend server of the logout action by sending a POST request to the /api/logout endpoint with the token included in the Authorization header. This allows the server to invalidate the token and perform any necessary cleanup on its end. Regardless of whether the server request succeeds or fails (to ensure a smooth user experience even if there are network issues), the function then removes the token from localStorage to prevent unauthorized access and calls the onLogout callback to update the application's state and redirect the user to the login page.
   const handleLogoutConfirm = async () => {
-    const token = localStorage.getItem('masipag_token');
-    
-    if (token) {
-      try {
-        await fetch('https://networkadmin.onrender.com/api/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      } catch (error) {
-        console.error("Failed to contact server during logout:", error);
-      }
+    try {
+      await fetch('https://networkadmin.onrender.com/api/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include' 
+      });
+    } catch (error) {
+      console.error("Failed to contact server during logout:", error);
     }
-    localStorage.removeItem('masipag_token');
+    
     onLogout();
   };
 

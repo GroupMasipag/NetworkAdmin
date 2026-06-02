@@ -15,17 +15,13 @@ export default function StatusIndicators({ darkMode }: StatusIndicatorsProps) {
 
   useEffect(() => {
     const fetchStatus = () => {
-      const token = localStorage.getItem('masipag_token');
-
       fetch('https://networkadmin.onrender.com/api/system-status', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
         .then((res) => {
+          // 3. The 401 Safety Net: Kicks the user out if the session cookie is invalid
           if (res.status === 401) {
-            console.error("Token expired! Redirecting to login...");
-            localStorage.removeItem('masipag_token');
+            console.error("Session expired! Redirecting to login...");
             window.location.href = '/'; 
             return null; 
           }

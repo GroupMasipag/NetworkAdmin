@@ -27,13 +27,12 @@ export default function LoginPage({ onLogin, darkMode, setDarkMode }: LoginPageP
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
+        credentials: 'include'
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // 2. Success! Save the VIP wristband (JWT) to the browser's memory
-        localStorage.setItem('masipag_token', data.token);
         
         // 3. Trigger the dashboard to open
         onLogin();

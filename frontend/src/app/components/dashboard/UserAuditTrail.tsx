@@ -18,12 +18,9 @@ export default function UserAuditTrail({ darkMode }: UserAuditTrailProps) {
 
   useEffect(() => {
     const fetchAuditLogs = () => {
-      const token = localStorage.getItem('masipag_token');
       
       fetch('https://networkadmin.onrender.com/api/audit-trail', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
         .then((res) => {
           if (res.status === 401) return null; // Safety net

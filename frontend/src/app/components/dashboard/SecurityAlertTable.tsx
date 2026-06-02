@@ -27,20 +27,13 @@ export default function SecurityAlertTable({ darkMode }: SecurityAlertTableProps
   // Fetch data from local Flask API
   useEffect(() => {
     const fetchThreats = () => {
-      // 1. Grab the VIP wristband
-      const token = localStorage.getItem('masipag_token');
-
-      // 2. Attach it to the Headers
       fetch('https://networkadmin.onrender.com/api/threats', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
         .then((res) => {
-          // 3. The 401 Safety Net
+          // 3. The 401 Safety Net: Kicks the user out if the session cookie is dead
           if (res.status === 401) {
-            console.error("Token expired! Redirecting to login...");
-            localStorage.removeItem('masipag_token');
+            console.error("Session expired! Redirecting to login...");
             window.location.href = '/'; 
             return null; 
           }

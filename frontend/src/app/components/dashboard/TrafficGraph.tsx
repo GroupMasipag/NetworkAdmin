@@ -18,20 +18,13 @@ export default function TrafficGraph({ darkMode }: TrafficGraphProps) {
 
   useEffect(() => {
     const fetchTraffic = () => {
-      // 1. Grab the VIP wristband from the browser's memory
-      const token = localStorage.getItem('masipag_token');
-
-      // 2. Attach it to the Headers
       fetch('https://networkadmin.onrender.com/api/traffic', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
         .then((res) => {
           // 3. SAFETY NET: Catch the 401 before it breaks React
           if (res.status === 401) {
-            console.error("Token expired! Redirecting to login...");
-            localStorage.removeItem('masipag_token');
+            console.error("Session expired! Redirecting to login...");
             window.location.href = '/'; 
             return null; 
           }

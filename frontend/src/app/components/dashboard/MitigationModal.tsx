@@ -46,11 +46,10 @@ async function callMitigateAPI(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // 2. Fixed token name to match the rest of the app
-        Authorization: `Bearer ${localStorage.getItem("masipag_token")}`,
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(15000),
+      credentials: 'include'
     });
 
     const data = await res.json();
@@ -73,11 +72,8 @@ async function callMitigateAPI(
 async function fetchLogs(alertId: number): Promise<LogLine[]> {
   try {
     const res = await fetch(`https://networkadmin.onrender.com/api/logs/live?alert_id=${alertId}`, {
-      headers: {
-        // Fixed token name
-        Authorization: `Bearer ${localStorage.getItem("masipag_token")}`,
-      },
       signal: AbortSignal.timeout(8000),
+      credentials: 'include'
     });
     
     if (!res.ok) throw new Error(`HTTP Error ${res.status}`);

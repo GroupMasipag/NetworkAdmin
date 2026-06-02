@@ -26,20 +26,13 @@ export default function SystemLogs({ darkMode }: SystemLogsProps) {
   // 2. Fetch the live data from Python
   useEffect(() => {
     const fetchLogs = () => {
-      // 1. Grab the VIP wristband from the browser's memory
-      const token = localStorage.getItem('masipag_token');
-
-      // 2. Attach it to the Headers
       fetch('https://networkadmin.onrender.com/api/logs', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
         .then((res) => {
           // 3. Catch the 401 before it causes the Black Screen of Death
           if (res.status === 401) {
-            console.error("Token expired! Redirecting to login...");
-            localStorage.removeItem('masipag_token');
+            console.error("Session expired! Redirecting to login...");
             window.location.href = '/'; 
             return null; 
           }
@@ -71,7 +64,6 @@ export default function SystemLogs({ darkMode }: SystemLogsProps) {
     const interval = setInterval(fetchLogs, 15000);
     return () => clearInterval(interval);
   }, []);
-
   const filteredLogs = logs.filter(log => {
     const matchesSearch = searchTerm === '' ||
       log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||

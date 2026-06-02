@@ -18,38 +18,31 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
 
   // 1. THE LOGOUT FUNCTION
   const handleLogout = async () => {
-    const token = localStorage.getItem('masipag_token');
-    if (token) {
-      try {
-        await fetch('https://networkadmin.onrender.com/api/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      } catch (error) {
-        console.error("Failed to contact server during logout:", error);
-      }
+    try {
+      await fetch('https://networkadmin.onrender.com/api/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include' 
+      });
+    } catch (error) {
+      console.error("Failed to contact server during logout:", error);
     }
-    // Destroy the wristband and redirect
-    localStorage.removeItem('masipag_token');
+    
     window.location.href = '/'; 
   };
 
   useEffect(() => {
     const fetchSummary = () => {
-      const token = localStorage.getItem('masipag_token');
-
+      
       fetch('https://networkadmin.onrender.com/api/dashboard-summary', {
-        headers: {
-          'Authorization': `Bearer ${token}` 
-        }
+        credentials: 'include' 
       })
         .then((res) => {
-          // 2. THE 401 FIX: Actually force the logout if the token dies
+          // 2. THE 401 FIX: Actually force the redirect if the secure cookie dies
           if (res.status === 401) {
-            console.error("Unauthorized access! Token invalid or missing.");
-            localStorage.removeItem('masipag_token');
+            console.error("Unauthorized access! Session cookie invalid or missing.");
             window.location.href = '/';
             return null; 
           }
@@ -174,7 +167,7 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
               Live Camera Feed
             </h3>
             <div className={`relative aspect-video rounded-lg overflow-hidden ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-900'}`}>
-              {localStorage.getItem('masipag_token') ? (
+              {
                 <img 
                   src="https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool"
                   alt="Mini CCTV Feed"
@@ -184,7 +177,7 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
                     document.getElementById('mini-cam-error')?.classList.remove('hidden');
                   }}
                 />
-              ) : null}
+              }
 
               {/* Fallback if the camera is unplugged or the network drops */}
               <div id="mini-cam-error" className="hidden absolute inset-0 flex flex-col items-center justify-center">
