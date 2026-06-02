@@ -18,7 +18,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # 1. INITIAL SETUP
 load_dotenv() 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {
+CORS(app, supports_credentials=True, resources={r"/api/*": {
     "origins": [
         "http://localhost:5173", # Local development URL for React frontend
         "https://networkadministrationgroup6.onrender.com", # Production URL for React frontend
