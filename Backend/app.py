@@ -18,6 +18,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # 1. INITIAL SETUP
 load_dotenv() 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 CORS(app, supports_credentials=True, resources={r"/api/*": {
     "origins": [
         "http://localhost:5173", # Local development URL for React frontend
@@ -582,8 +583,5 @@ if __name__ == '__main__':
         test.close()
     else:
         print("❌ FAILED: Could not link to PostgreSQL. Check .env file.")
-
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-
     port = int(os.environ.get("PORT", 5001))
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
