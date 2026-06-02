@@ -20,7 +20,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {
     "origins": [
         "http://localhost:5173", # Local development URL for React frontend
-        "https://networkadministrationgroup6.onrender.com" # Production URL for React frontend
+        "https://networkadministrationgroup6.onrender.com", # Production URL for React frontend
         "https://acoustic-closing-thunder-widespread.trycloudflare.com"
     ]}}) # Allows frontend to talk to backend
 
