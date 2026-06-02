@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, set_access_cookies
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -192,8 +192,16 @@ def video_feed():
 @limiter.limit("5 per minute")
 def login():
     incoming_data = request.get_json()
+    # Instantly reject empty payloads
+    if not incoming_data:
+        return jsonify({"error": "Missing JSON body"}), 400
+        
     username = incoming_data.get('username')
     password = incoming_data.get('password')
+
+    # Instantly reject missing credentials
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
 
     conn = get_db_connection()
     if conn:
