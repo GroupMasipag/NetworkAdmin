@@ -38,14 +38,21 @@ if not jwt_secret:
     raise ValueError("FATAL ERROR: JWT_SECRET_KEY is not set in the environment!")
 app.config["JWT_SECRET_KEY"] = jwt_secret
 
-# Tell Flask-JWT-Extended to use cookies instead of Authorization headers
+# --- JWT COOKIE CONFIGURATION ---
+# 1. Force Flask to look inside Cookies instead of Headers
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 
-# Prevent JavaScript from reading the cookie (Stops XSS)
-app.config['JWT_COOKIE_SECURE'] = True  # Ensures the cookie is only sent over HTTPS
-app.config['JWT_COOKIE_CSRF_PROTECT'] = True # Generates a secondary CSRF token
+# 2. Allow cookies to travel over HTTPS (Required for Render hosting)
+app.config['JWT_COOKIE_SECURE'] = True
+
+# 3. Crucial! Allows the cookie to cross from your frontend Render URL to your backend Render URL
+app.config['JWT_COOKIE_SAMESITE'] = 'None'
+
+# 4. Disable double CSRF tokens for the demo to prevent strict token mismatch errors
+app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 
 jwt = JWTManager(app)
+
 #jwt and database url is in the .env file 
 def get_db_connection():
     try:
