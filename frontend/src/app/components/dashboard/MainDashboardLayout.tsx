@@ -176,7 +176,7 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
             <div className={`relative aspect-video rounded-lg overflow-hidden ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-900'}`}>
               {localStorage.getItem('masipag_token') ? (
                 <img 
-                  src={`https://networkadmin.onrender.com/api/camera/stream?token=${localStorage.getItem('masipag_token')}`}
+                  src="https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool"
                   alt="Mini CCTV Feed"
                   className="absolute inset-0 w-full h-full object-cover"
                   onError={(e) => {
