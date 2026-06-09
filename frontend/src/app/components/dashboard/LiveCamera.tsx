@@ -12,7 +12,7 @@ export default function LiveCamera({ darkMode }: LiveCameraProps) {
 
   
   // FIX: Updated to use the exact Cloudflare URL provided
-  const streamUrl = "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool";
+  const streamUrl = "https://merchants-centres-trace-pressure.trycloudflare.com/stream?key=praise-the-fool";
 
   useEffect(() => {
     const fetchCameraEvents = () => {
