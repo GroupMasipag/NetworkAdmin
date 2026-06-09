@@ -142,7 +142,7 @@ threading.Thread(target=network_scanner, daemon=True).start()
 
 def generate_camera_frames():
     # MODIFIED: Configured with your explicit camera RTSP source destination
-    camera_source = "https://merchants-centres-trace-pressure.trycloudflare.com/stream?key=praise-the-fool"
+    camera_source = os.environ.get("CAMERA_URL", "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool")
     
     camera = cv2.VideoCapture(camera_source, cv2.CAP_FFMPEG)
     
