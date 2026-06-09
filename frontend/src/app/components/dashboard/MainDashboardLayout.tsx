@@ -169,7 +169,7 @@ export default function MainDashboardLayout({ darkMode }: MainDashboardLayoutPro
             <div className={`relative aspect-video rounded-lg overflow-hidden ${darkMode ? 'bg-[#0f1f35]' : 'bg-gray-900'}`}>
               {
                 <img 
-                  src="https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool"
+                  src="https://merchants-centres-trace-pressure.trycloudflare.com/stream?key=praise-the-fool"
                   alt="Mini CCTV Feed"
                   className="absolute inset-0 w-full h-full object-cover"
                   onError={(e) => {
