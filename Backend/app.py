@@ -23,7 +23,7 @@ CORS(app, supports_credentials=True, resources={r"/api/*": {
     "origins": [
         "http://localhost:5173", # Local development URL for React frontend
         "https://networkadministrationgroup6.onrender.com", # Production URL for React frontend
-        "https://acoustic-closing-thunder-widespread.trycloudflare.com" #cloudflare tunnel URL 
+        "https://merchants-centres-trace-pressure.trycloudflare.com/stream?key=praise-the-fool" #cloudflare tunnel URL 
     ]}}) # Allows frontend to talk to backend
 
 limiter = Limiter(
@@ -142,7 +142,7 @@ threading.Thread(target=network_scanner, daemon=True).start()
 
 def generate_camera_frames():
     # MODIFIED: Configured with your explicit camera RTSP source destination
-    camera_source = "https://name-meat-yet-stage.trycloudflare.com/stream?key=praise-the-fool"
+    camera_source = "https://merchants-centres-trace-pressure.trycloudflare.com/stream?key=praise-the-fool"
     
     camera = cv2.VideoCapture(camera_source, cv2.CAP_FFMPEG)
     
