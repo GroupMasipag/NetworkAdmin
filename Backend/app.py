@@ -21,7 +21,7 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 CORS(app, supports_credentials=True, resources={r"/api/*": {
     "origins": [
-        "http://localhost:5173", # Local development URL for React frontend
+        "http://localhost:5001", # Local development URL for React frontend
         "https://networkadministrationgroup6.onrender.com", # Production URL for React frontend
         "https://merchants-centres-trace-pressure.trycloudflare.com/stream?key=praise-the-fool" #cloudflare tunnel URL 
     ]}}) # Allows frontend to talk to backend
